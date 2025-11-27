@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+/* WhatsApp Theme Variables */
+@theme {
+  /* WhatsApp color palette - Light mode */
+  --color-wa-dark-green: #075e54;
+  --color-wa-teal: #128c7e;
+  --color-wa-light-green: #25d366;
+  --color-wa-chat-bg: #efeae2;
+  --color-wa-incoming: #ffffff;
+  --color-wa-outgoing: #d9fdd3;
+  --color-wa-sidebar: #ffffff;
+  --color-wa-sidebar-hover: #f5f6f6;
+  --color-wa-sidebar-active: #f0f2f5;
+  --color-wa-header: #f0f2f5;
+  --color-wa-border: #e9edef;
+  --color-wa-text-primary: #111b21;
+  --color-wa-text-secondary: #667781;
+  --color-wa-text-muted: #8696a0;
+
+  /* Dark mode colors */
+  --color-wa-dark-chat-bg: #0b141a;
+  --color-wa-dark-incoming: #202c33;
+  --color-wa-dark-outgoing: #005c4b;
+  --color-wa-dark-sidebar: #111b21;
+  --color-wa-dark-sidebar-hover: #202c33;
+  --color-wa-dark-sidebar-active: #2a3942;
+  --color-wa-dark-header: #202c33;
+  --color-wa-dark-border: #2a3942;
+  --color-wa-dark-text-primary: #e9edef;
+  --color-wa-dark-text-secondary: #8696a0;
+  --color-wa-dark-text-muted: #667781;
+}
+
+/* WhatsApp-style chat background pattern */
+.wa-chat-pattern {
+  background-color: var(--color-wa-chat-bg);
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d4cfc4' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+@media (prefers-color-scheme: dark) {
+  .wa-chat-pattern {
+    background-color: var(--color-wa-dark-chat-bg);
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23182229' fill-opacity='0.6'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+}
