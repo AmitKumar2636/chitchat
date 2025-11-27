@@ -14,13 +14,18 @@ export function UpdateChecker() {
 
   onMount(async () => {
     try {
+      console.log('[UpdateChecker] Checking for updates...');
       const update = await check();
+      console.log('[UpdateChecker] Check result:', update);
       if (update) {
+        console.log('[UpdateChecker] Update available:', update.version);
         setUpdateAvailable(true);
         setUpdateVersion(update.version);
+      } else {
+        console.log('[UpdateChecker] No update available');
       }
     } catch (err) {
-      console.error('Failed to check for updates:', err);
+      console.error('[UpdateChecker] Failed to check for updates:', err);
       // Don't show error to user - update check failures are not critical
     }
   });
