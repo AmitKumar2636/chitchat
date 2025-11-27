@@ -6,9 +6,11 @@
  * - Online/offline status indicators
  * - Typing indicators
  * - Last message preview
+ * - Search/filter contacts
  */
-import { Show, createMemo } from 'solid-js';
+import { Show, createMemo, createSignal } from 'solid-js';
 import { Button } from '@kobalte/core/button';
+import { TextField } from '@kobalte/core/text-field';
 import { AccessibleListbox, type ListboxItem } from './AccessibleListbox';
 import { chats, loadingChats, currentChatId, selectChat, otherUserPresence } from '../stores/chats';
 import { user } from '../stores/auth';
@@ -83,6 +85,9 @@ function useChatDerivedInfo() {
 // ============================================================================
 
 export function ChatList(props: Props) {
+  // Search state
+  const [searchQuery, setSearchQuery] = createSignal('');
+  
   // Create memoized derived info for all chats
   const chatInfoMap = useChatDerivedInfo();
   
@@ -97,8 +102,21 @@ export function ChatList(props: Props) {
     };
   };
   
+  // Filter chats based on search query
+  const filteredChats = createMemo(() => {
+    const query = searchQuery().toLowerCase().trim();
+    if (!query) return chats();
+    
+    return chats().filter(chat => {
+      const info = getChatInfo(chat.id);
+      // Search by contact name or last message
+      return info.otherName.toLowerCase().includes(query) ||
+             (chat.lastMessage?.toLowerCase().includes(query) ?? false);
+    });
+  });
+  
   // Convert chats to ListboxItems (they already have `id`)
-  const items = (): ChatItem[] => chats() as ChatItem[];
+  const items = (): ChatItem[] => filteredChats() as ChatItem[];
 
   // Handle chat selection
   const handleSelect = (chat: ChatItem) => {
@@ -170,6 +188,43 @@ export function ChatList(props: Props) {
         </Button>
       </div>
 
+      {/* Search input */}
+      <div class="px-3 py-2 border-b border-wa-border dark:border-wa-dark-border">
+        <TextField
+          value={searchQuery()}
+          onChange={setSearchQuery}
+          class="relative"
+        >
+          <TextField.Label class="sr-only">Search contacts or messages</TextField.Label>
+          {/* Search icon */}
+          <svg
+            class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-wa-text-secondary dark:text-wa-dark-text-secondary pointer-events-none z-10"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <TextField.Input
+            placeholder="Search contacts or messages"
+            class="w-full pl-10 pr-10 py-2 text-sm rounded-lg bg-wa-sidebar-hover dark:bg-wa-dark-sidebar-hover text-wa-text-primary dark:text-wa-dark-text-primary placeholder:text-wa-text-secondary dark:placeholder:text-wa-dark-text-secondary border border-transparent focus:border-wa-teal focus:outline-none focus:ring-1 focus:ring-wa-teal"
+          />
+          {/* Clear button */}
+          <Show when={searchQuery()}>
+            <Button
+              onClick={() => setSearchQuery('')}
+              class="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full text-wa-text-secondary dark:text-wa-dark-text-secondary hover:text-wa-text-primary dark:hover:text-wa-dark-text-primary hover:bg-wa-border dark:hover:bg-wa-dark-border transition-colors z-10"
+              aria-label="Clear search"
+            >
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </Button>
+          </Show>
+        </TextField>
+      </div>
+
       <Show
         when={!loadingChats()}
         fallback={
@@ -186,17 +241,26 @@ export function ChatList(props: Props) {
             </p>
           }
         >
-          <AccessibleListbox
-            items={items()}
-            activeId={currentChatId()}
-            onSelect={handleSelect}
-            label="Contacts. Use arrow keys to navigate."
-            id="chat-list"
-            class="flex-1 overflow-y-auto"
-            initialFocusLast={false}
+          <Show
+            when={items().length > 0}
+            fallback={
+              <p class="p-8 text-center text-wa-text-secondary dark:text-wa-dark-text-secondary">
+                No contacts match "{searchQuery()}"
+              </p>
+            }
           >
-            {renderChatItem}
-          </AccessibleListbox>
+            <AccessibleListbox
+              items={items()}
+              activeId={currentChatId()}
+              onSelect={handleSelect}
+              label="Contacts. Use arrow keys to navigate."
+              id="chat-list"
+              class="flex-1 overflow-y-auto"
+              initialFocusLast={false}
+            >
+              {renderChatItem}
+            </AccessibleListbox>
+          </Show>
         </Show>
       </Show>
     </nav>

@@ -6,10 +6,13 @@ import { ChatList } from "./components/ChatList";
 import { MessageView } from "./components/MessageView";
 import { NewChatDialog } from "./components/NewChatDialog";
 import { UpdateChecker } from "./components/UpdateChecker";
+import { ThemeToggle } from "./components/ThemeToggle";
 import { user, loading, initAuthListener, cleanupAuthListener } from "./stores/auth";
 import { initChatsListener, cleanupChatsListener, cleanupMessagesListener } from "./stores/chats";
 import { signOut } from "./services/auth";
 import { updateUserPresence } from "./services/messages";
+// Initialize theme on app load
+import "./stores/theme";
 
 function App() {
   const [showNewChat, setShowNewChat] = createSignal(false);
@@ -33,12 +36,32 @@ function App() {
       }
     };
 
+    // Global keyboard shortcuts
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle shortcuts when logged in
+      if (!user()) return;
+      
+      // Ctrl+N or Cmd+N: New chat
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        setShowNewChat(true);
+      }
+      
+      // Escape: Close dialogs
+      if (e.key === 'Escape' && showNewChat()) {
+        e.preventDefault();
+        setShowNewChat(false);
+      }
+    };
+
     window.addEventListener('beforeunload', handleBeforeUnload);
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('keydown', handleKeyDown);
 
     onCleanup(() => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('keydown', handleKeyDown);
     });
   });
 
@@ -85,6 +108,7 @@ function App() {
             <header class="flex items-center justify-between px-4 py-3 bg-wa-header dark:bg-wa-dark-header min-h-[60px]">
               <h1 class="text-xl font-semibold text-wa-dark-green">Chitchat</h1>
               <div class="flex items-center gap-4">
+                <ThemeToggle />
                 <span class="text-sm text-wa-text-secondary dark:text-wa-dark-text-secondary">
                   {user()?.displayName || user()?.email}
                 </span>
