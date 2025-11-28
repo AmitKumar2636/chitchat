@@ -53,9 +53,10 @@ function useChatDerivedInfo() {
     const infoMap = new Map<string, ChatDerivedInfo>();
 
     for (const chat of chatList) {
-      // Calculate other participant
+      // Calculate other participant (participants is now an object { odId: true })
+      const participantIds = Object.keys(chat.participants || {});
       const otherId = currentUser
-        ? chat.participants.find((id) => id !== currentUser.uid) || null
+        ? participantIds.find((id) => id !== currentUser.uid) || null
         : null;
 
       // Calculate name

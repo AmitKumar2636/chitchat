@@ -26,7 +26,9 @@ export function MessageView() {
     const currentUser = user();
     if (!chat || !currentUser) return { name: 'User', isTyping: false, isOnline: false };
 
-    const otherId = chat.participants.find((id) => id !== currentUser.uid);
+    // participants is now an object { odId: true }
+    const participantIds = Object.keys(chat.participants || {});
+    const otherId = participantIds.find((id) => id !== currentUser.uid);
     if (!otherId) return { name: 'User', isTyping: false, isOnline: false };
 
     const name = chat.participantNames?.[otherId] || 'User';

@@ -7,7 +7,13 @@ import {
   subscribeToMessages,
   subscribeToUserPresence,
 } from '../services/messages';
-import { initNotifications, notifyNewMessage, notifyUserOnline } from '../services/notifications';
+import {
+  initNotifications,
+  notifyNewMessage,
+  notifyUserOnline,
+  notifyUserOffline,
+  resetNotifications,
+} from '../services/notifications';
 
 // Create signals within a root to ensure proper lifecycle management
 const store = createRoot(() => {
@@ -58,20 +64,54 @@ const {
 let chatsUnsubscribe: (() => void) | null = null;
 let messagesUnsubscribe: (() => void) | null = null;
 let presenceUnsubscribes: Map<string, () => void> = new Map();
-let currentUserId: string | null = null;
-let isInitialMessageLoad = true;
-let lastMessageCount = 0;
+let loggedInUserId: string | null = null;
 
 // Subscribe to user's chat list
 export async function initChatsListener(userId: string) {
   cleanupChatsListener();
   setLoadingChats(true);
-  currentUserId = userId;
+  loggedInUserId = userId;
 
   // Initialize notifications when user logs in
   await initNotifications();
 
   chatsUnsubscribe = subscribeToChats(userId, (newChats) => {
+    const prevChats = chats(); // Current state before update
+
+    // Check for new messages (only if we have previous state)
+    if (prevChats.length > 0) {
+      newChats.forEach((chat) => {
+        const prevChat = prevChats.find((c) => c.id === chat.id);
+
+        // Only notify if:
+        // 1. We have a previous state for this chat
+        // 2. The lastMessage actually changed
+        // 3. We know who sent it (lastMessageSenderId is defined)
+        // 4. It's not from the current user
+        const messageChanged = prevChat && chat.lastMessage !== prevChat.lastMessage;
+        const hasSenderId =
+          chat.lastMessageSenderId !== undefined && chat.lastMessageSenderId !== null;
+        const isFromOther = chat.lastMessageSenderId !== loggedInUserId;
+
+        if (messageChanged && hasSenderId && isFromOther) {
+          // Don't notify if viewing this chat with window visible
+          if (chat.id === currentChatId() && !document.hidden) {
+            return;
+          }
+
+          const senderId = chat.lastMessageSenderId;
+          const senderName = senderId
+            ? chat.participantNames?.[senderId] ||
+              otherUserPresence()[senderId]?.displayName ||
+              otherUserPresence()[senderId]?.email ||
+              'Someone'
+            : 'Someone';
+
+          notifyNewMessage(senderName, chat.lastMessage);
+        }
+      });
+    }
+
     setChats(newChats);
     setLoadingChats(false);
 
@@ -92,7 +132,9 @@ function updatePresenceSubscriptions(chatList: Chat[], currentUserIdParam: strin
   const otherUserIds = new Set<string>();
 
   chatList.forEach((chat) => {
-    chat.participants.forEach((id) => {
+    // participants is now an object { odId: true, odId2: true }
+    const participantIds = Object.keys(chat.participants || {});
+    participantIds.forEach((id) => {
       if (id !== currentUserIdParam) {
         otherUserIds.add(id);
       }
@@ -112,12 +154,26 @@ function updatePresenceSubscriptions(chatList: Chat[], currentUserIdParam: strin
     if (!presenceUnsubscribes.has(odId)) {
       const unsub = subscribeToUserPresence(odId, (user) => {
         if (user) {
-          // Check if user just came online (was offline before)
           const prevUser = otherUserPresence()[odId];
-          if (prevUser && !prevUser.isOnline && user.isOnline) {
-            // User just came online - notify
-            notifyUserOnline(user.displayName || user.email || 'A contact');
+          const userName = user.displayName || user.email || 'A contact';
+
+          // Only notify about presence changes if we have a previous state
+          // (to avoid notifications on initial load)
+          if (prevUser !== undefined) {
+            const wasOnline = prevUser.isOnline === true;
+            const isNowOnline = user.isOnline === true;
+
+            // Check if user just came online (was offline before)
+            if (!wasOnline && isNowOnline) {
+              notifyUserOnline(userName);
+            }
+
+            // Check if user just went offline (was online before)
+            if (wasOnline && !isNowOnline) {
+              notifyUserOffline(userName);
+            }
           }
+
           setOtherUserPresence((prev) => ({ ...prev, [odId]: user }));
         }
       });
@@ -135,6 +191,9 @@ export function cleanupChatsListener() {
   presenceUnsubscribes.forEach((unsub) => unsub());
   presenceUnsubscribes.clear();
   setOtherUserPresence({});
+  loggedInUserId = null;
+  // Reset notification state so it re-initializes on next login
+  resetNotifications();
 }
 
 // Subscribe to messages in a specific chat
@@ -142,31 +201,12 @@ export function selectChat(chatId: string) {
   cleanupMessagesListener();
   setCurrentChatId(chatId);
   setLoadingMessages(true);
-  isInitialMessageLoad = true;
-  lastMessageCount = 0;
 
   // Set current chat
   const chat = chats().find((c) => c.id === chatId);
   setCurrentChat(chat || null);
 
   messagesUnsubscribe = subscribeToMessages(chatId, (newMessages) => {
-    // Check for new messages from others (not from the current user)
-    if (!isInitialMessageLoad && newMessages.length > lastMessageCount) {
-      // Get the new messages
-      const newOnes = newMessages.slice(lastMessageCount);
-
-      // Notify for messages not sent by current user (only when window is not focused)
-      if (document.hidden) {
-        newOnes.forEach((msg) => {
-          if (msg.senderId !== currentUserId) {
-            notifyNewMessage(msg.senderName || 'Someone', msg.text);
-          }
-        });
-      }
-    }
-
-    lastMessageCount = newMessages.length;
-    isInitialMessageLoad = false;
     setMessages(newMessages);
     setLoadingMessages(false);
   });

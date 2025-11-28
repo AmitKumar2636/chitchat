@@ -13,6 +13,9 @@ let initialized = false;
  * Initialize the notification system.
  * Checks/requests permission and sets up the notification state.
  * Should be called once when the app starts (after user login).
+ *
+ * Note: Notification channels are an Android-specific feature and are not
+ * supported on desktop platforms (Windows, macOS, Linux).
  */
 export async function initNotifications(): Promise<boolean> {
   if (initialized) {
@@ -29,14 +32,12 @@ export async function initNotifications(): Promise<boolean> {
       hasPermission = permission === 'granted';
     }
 
+    if (!hasPermission) {
+      console.warn('Notifications permission denied');
+    }
+
     notificationsEnabled = hasPermission;
     initialized = true;
-
-    if (hasPermission) {
-      console.log('Notifications enabled');
-    } else {
-      console.log('Notifications permission denied');
-    }
 
     return hasPermission;
   } catch (error) {
@@ -55,6 +56,14 @@ export function areNotificationsEnabled(): boolean {
 }
 
 /**
+ * Reset notification state (call on logout)
+ */
+export function resetNotifications(): void {
+  initialized = false;
+  notificationsEnabled = false;
+}
+
+/**
  * Show a notification for a new message
  * @param senderName - The name of the message sender
  * @param messageText - The message content (will be truncated if too long)
@@ -69,10 +78,11 @@ export async function notifyNewMessage(senderName: string, messageText: string):
     const truncatedMessage =
       messageText.length > 100 ? messageText.substring(0, 97) + '...' : messageText;
 
-    await sendNotification({
+    // Send notification for new message
+    // Windows Toast Notifications use the system default sound
+    sendNotification({
       title: `New message from ${senderName}`,
       body: truncatedMessage,
-      sound: 'default',
     });
   } catch (error) {
     console.error('Failed to send message notification:', error);
@@ -89,10 +99,9 @@ export async function notifyUserOnline(userName: string): Promise<void> {
   }
 
   try {
-    await sendNotification({
+    sendNotification({
       title: 'Contact Online',
       body: `${userName} is now online`,
-      sound: 'default',
     });
   } catch (error) {
     console.error('Failed to send online notification:', error);
@@ -109,10 +118,9 @@ export async function notifyUserOffline(userName: string): Promise<void> {
   }
 
   try {
-    await sendNotification({
+    sendNotification({
       title: 'Contact Offline',
       body: `${userName} is now offline`,
-      sound: 'default',
     });
   } catch (error) {
     console.error('Failed to send offline notification:', error);
@@ -130,7 +138,7 @@ export async function showNotification(title: string, body: string): Promise<voi
   }
 
   try {
-    await sendNotification({ title, body, sound: 'default' });
+    sendNotification({ title, body });
   } catch (error) {
     console.error('Failed to send notification:', error);
   }

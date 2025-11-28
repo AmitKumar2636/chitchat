@@ -29,13 +29,17 @@ type MessageItem = Message & ListboxItem;
 // Utilities
 // ============================================================================
 
-function formatTimestamp(timestamp: Date | { toDate?: () => Date } | null): string {
+function formatTimestamp(timestamp: Date | number | { toDate?: () => Date } | null): string {
   if (!timestamp) return '';
 
-  const date =
-    typeof timestamp === 'object' && 'toDate' in timestamp && timestamp.toDate
-      ? timestamp.toDate()
-      : new Date(timestamp as Date);
+  let date: Date;
+  if (typeof timestamp === 'number') {
+    date = new Date(timestamp);
+  } else if (typeof timestamp === 'object' && 'toDate' in timestamp && timestamp.toDate) {
+    date = timestamp.toDate();
+  } else {
+    date = new Date(timestamp as Date);
+  }
 
   if (isNaN(date.getTime())) return '';
 
