@@ -1,12 +1,12 @@
 /**
  * AccessibleListbox - A reusable, accessible listbox component
- * 
+ *
  * Implements WAI-ARIA listbox pattern with:
  * - Keyboard navigation (Arrow keys, Home, End, Escape)
  * - Screen reader support via proper ARIA attributes
  * - Focus management with roving tabindex
  * - SolidJS best practices: context, signals, proper reactivity
- * 
+ *
  * Usage:
  * <AccessibleListbox
  *   items={items()}
@@ -86,11 +86,11 @@ export function useListboxContext() {
 export function AccessibleListbox<T extends ListboxItem>(props: AccessibleListboxProps<T>) {
   // Generate unique ID for this listbox instance
   const listboxId = props.id ?? `listbox-${Math.random().toString(36).slice(2, 9)}`;
-  
+
   // State
   const [focusedIndex, setFocusedIndex] = createSignal(-1);
   const [hasFocus, setHasFocus] = createSignal(false);
-  
+
   // Refs storage using Map for proper cleanup
   const itemRefs = new Map<number, HTMLElement>();
   let containerRef: HTMLDivElement | undefined;
@@ -117,17 +117,17 @@ export function AccessibleListbox<T extends ListboxItem>(props: AccessibleListbo
   const getTabbableIndex = (): number => {
     const items = props.items;
     if (items.length === 0) return -1;
-    
+
     // If currently focused, that item is tabbable
     const currentFocus = focusedIndex();
     if (currentFocus >= 0) return currentFocus;
-    
+
     // If there's an active/selected item, that should be tabbable
     if (props.activeId) {
-      const activeIndex = items.findIndex(item => item.id === props.activeId);
+      const activeIndex = items.findIndex((item) => item.id === props.activeId);
       if (activeIndex >= 0) return activeIndex;
     }
-    
+
     // Otherwise first (for contacts) or last (for messages) is tabbable
     return props.initialFocusLast ? items.length - 1 : 0;
   };
@@ -224,7 +224,7 @@ export function AccessibleListbox<T extends ListboxItem>(props: AccessibleListbo
       () => props.items.length,
       (newLength, prevLength) => {
         if (prevLength === undefined) return;
-        
+
         const currentIndex = focusedIndex();
         if (hasFocus() && currentIndex >= newLength && newLength > 0) {
           setFocusedIndex(newLength - 1);
@@ -259,9 +259,9 @@ export function AccessibleListbox<T extends ListboxItem>(props: AccessibleListbo
             const isSelected = () => props.activeId === item.id;
             // Roving tabindex: only the tabbable item has tabIndex 0
             const isTabbable = () => getTabbableIndex() === index();
-            
+
             return (
-              <ListboxItem
+              <ListboxItemWrapper
                 id={`${listboxId}-item-${index()}`}
                 index={index()}
                 isActive={isActive}
@@ -273,7 +273,7 @@ export function AccessibleListbox<T extends ListboxItem>(props: AccessibleListbo
                 unregisterItem={unregisterItem}
               >
                 {props.children(item, index, isActive)}
-              </ListboxItem>
+              </ListboxItemWrapper>
             );
           }}
         </For>
@@ -283,10 +283,10 @@ export function AccessibleListbox<T extends ListboxItem>(props: AccessibleListbo
 }
 
 // ============================================================================
-// ListboxItem - Internal wrapper for each item
+// ListboxItemWrapper - Internal wrapper for each item
 // ============================================================================
 
-interface ListboxItemProps {
+interface ListboxItemWrapperProps {
   id: string;
   index: number;
   isActive: Accessor<boolean>;
@@ -299,7 +299,7 @@ interface ListboxItemProps {
   children: JSX.Element;
 }
 
-function ListboxItem(props: ListboxItemProps) {
+function ListboxItemWrapper(props: ListboxItemWrapperProps) {
   let itemRef: HTMLDivElement | undefined;
 
   // Register ref on mount

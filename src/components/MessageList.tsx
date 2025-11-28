@@ -1,6 +1,6 @@
 /**
  * MessageList - Displays chat messages using AccessibleListbox
- * 
+ *
  * Features:
  * - Accessible keyboard navigation via AccessibleListbox
  * - Live region announcements for new messages
@@ -31,27 +31,33 @@ type MessageItem = Message & ListboxItem;
 
 function formatTimestamp(timestamp: Date | { toDate?: () => Date } | null): string {
   if (!timestamp) return '';
-  
-  const date = typeof timestamp === 'object' && 'toDate' in timestamp && timestamp.toDate
-    ? timestamp.toDate()
-    : new Date(timestamp as Date);
-  
+
+  const date =
+    typeof timestamp === 'object' && 'toDate' in timestamp && timestamp.toDate
+      ? timestamp.toDate()
+      : new Date(timestamp as Date);
+
   if (isNaN(date.getTime())) return '';
-  
+
   const now = new Date();
   const isToday = date.toDateString() === now.toDateString();
-  
+
   if (isToday) {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
-  
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' +
-    date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  return (
+    date.toLocaleDateString([], { month: 'short', day: 'numeric' }) +
+    ' ' +
+    date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  );
 }
 
 function getMessageLabel(message: Message, isSent: boolean): string {
   const sender = isSent ? 'You' : message.senderName;
-  return `${sender}: ${message.text}`;
+  const timestamp = formatTimestamp(message.timestamp);
+  const timeLabel = timestamp ? `, ${timestamp}` : '';
+  return `${sender}: ${message.text}${timeLabel}`;
 }
 
 // ============================================================================
@@ -63,7 +69,7 @@ export function MessageList(props: Props) {
   const [announcement1, setAnnouncement1] = createSignal('');
   const [announcement2, setAnnouncement2] = createSignal('');
   const [useFirstSlot, setUseFirstSlot] = createSignal(true);
-  
+
   // Container ref for auto-scroll
   let scrollContainerRef: HTMLDivElement | undefined;
 
@@ -91,16 +97,16 @@ export function MessageList(props: Props) {
       () => props.messages.length,
       (currentCount, previousCount) => {
         if (previousCount === undefined) return;
-        
+
         if (currentCount > previousCount && previousCount > 0) {
           const newMessages = props.messages.slice(previousCount);
           const announcements = newMessages.map((msg) => {
             const isSent = msg.senderId === props.currentUserId;
             return getMessageLabel(msg, isSent);
           });
-          
+
           const announcementText = announcements.join('. ');
-          
+
           // Alternate between two live regions
           if (useFirstSlot()) {
             setAnnouncement2('');
@@ -116,36 +122,51 @@ export function MessageList(props: Props) {
   );
 
   // Render a single message item
-  const renderMessage = (message: MessageItem, _index: () => number, isActive: () => boolean) => {
+  const renderMessage = (message: MessageItem, index: () => number, isActive: () => boolean) => {
     const isSent = () => message.senderId === props.currentUserId;
     const messageLabel = () => getMessageLabel(message, isSent());
 
+    // Check if this is a continuation from the same sender
+    const isFirstInGroup = () => {
+      const idx = index();
+      if (idx === 0) return true;
+      const prevMessage = props.messages[idx - 1];
+      return prevMessage.senderId !== message.senderId;
+    };
+
+    // Check if next message is from same sender (for spacing)
+    const isLastInGroup = () => {
+      const idx = index();
+      if (idx === props.messages.length - 1) return true;
+      const nextMessage = props.messages[idx + 1];
+      return nextMessage.senderId !== message.senderId;
+    };
+
     return (
       <div
-        class={`max-w-[65%] px-3 py-2 rounded-lg shadow-sm transition-all
-          ${isSent() 
-            ? 'self-end bg-wa-outgoing dark:bg-wa-dark-outgoing rounded-tr-none ml-auto' 
-            : 'self-start bg-wa-incoming dark:bg-wa-dark-incoming rounded-tl-none mr-auto'
+        class={`w-fit max-w-[70%] px-3 py-2 rounded-lg shadow-sm transition-all
+          ${
+            isSent()
+              ? 'self-end bg-wa-outgoing dark:bg-wa-dark-outgoing rounded-tr-none ml-auto'
+              : 'self-start bg-wa-incoming dark:bg-wa-dark-incoming rounded-tl-none mr-auto'
           }
-          ${isActive() 
-            ? 'ring-2 ring-wa-teal ring-offset-2' 
-            : 'focus:ring-2 focus:ring-wa-teal focus:ring-offset-2'
-          }`}
+          ${isLastInGroup() ? 'mb-2' : 'mb-0.5'}
+          ${isActive() ? 'ring-2 ring-wa-teal/50 ring-offset-1' : ''}`}
       >
         {/* Screen reader text */}
         <span class="sr-only">{messageLabel()}</span>
-        
+
         {/* Visual content */}
         <div aria-hidden="true">
-          <Show when={!isSent()}>
+          <Show when={!isSent() && isFirstInGroup()}>
             <span class="text-xs font-semibold text-wa-teal block mb-0.5">
               {message.senderName}
             </span>
           </Show>
-          <p class="text-wa-text-primary dark:text-wa-dark-text-primary break-words">
+          <p class="text-wa-text-primary dark:text-wa-dark-text-primary break-words whitespace-pre-wrap">
             {message.text}
           </p>
-          <time class="text-[11px] text-wa-text-muted dark:text-wa-dark-text-muted block text-right mt-1">
+          <time class="text-[11px] text-wa-text-secondary dark:text-wa-dark-text-secondary block text-right mt-0.5 opacity-80">
             {formatTimestamp(message.timestamp)}
           </time>
         </div>
@@ -163,14 +184,14 @@ export function MessageList(props: Props) {
         {announcement2()}
       </div>
 
-      <div
-        ref={scrollContainerRef}
-        class="flex-1 overflow-y-auto p-4"
-      >
+      <div ref={scrollContainerRef} class="flex-1 overflow-y-auto p-4">
         <Show
           when={!props.loading}
           fallback={
-            <div class="flex items-center justify-center h-full text-wa-text-secondary dark:text-wa-dark-text-secondary" role="status">
+            <div
+              class="flex items-center justify-center h-full text-wa-text-secondary dark:text-wa-dark-text-secondary"
+              role="status"
+            >
               Loading messages...
             </div>
           }

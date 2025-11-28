@@ -1,6 +1,6 @@
 /**
  * ChatList - Displays contacts/conversations using AccessibleListbox
- * 
+ *
  * Features:
  * - Accessible keyboard navigation via AccessibleListbox
  * - Online/offline status indicators
@@ -49,33 +49,33 @@ function useChatDerivedInfo() {
     const currentUser = user();
     const presence = otherUserPresence();
     const chatList = chats();
-    
+
     const infoMap = new Map<string, ChatDerivedInfo>();
-    
+
     for (const chat of chatList) {
       // Calculate other participant
-      const otherId = currentUser 
+      const otherId = currentUser
         ? chat.participants.find((id) => id !== currentUser.uid) || null
         : null;
-      
+
       // Calculate name
       const otherName = (otherId && chat.participantNames?.[otherId]) || 'Unknown';
-      
+
       // Calculate online status
-      const isOnline = otherId ? (presence[otherId]?.isOnline || false) : false;
-      
+      const isOnline = otherId ? presence[otherId]?.isOnline || false : false;
+
       // Calculate typing status
-      const isTyping = otherId && chat.typing ? (chat.typing[otherId] === true) : false;
-      
+      const isTyping = otherId && chat.typing ? chat.typing[otherId] === true : false;
+
       // Build accessible label
       let label = otherName;
       label += isOnline ? ', online' : ', offline';
       if (isTyping) label += ', typing';
       if (chat.lastMessage) label += `, last message: ${chat.lastMessage}`;
-      
+
       infoMap.set(chat.id, { otherName, otherId, isOnline, isTyping, label });
     }
-    
+
     return infoMap;
   });
 }
@@ -87,34 +87,38 @@ function useChatDerivedInfo() {
 export function ChatList(props: Props) {
   // Search state
   const [searchQuery, setSearchQuery] = createSignal('');
-  
+
   // Create memoized derived info for all chats
   const chatInfoMap = useChatDerivedInfo();
-  
+
   // Helper to get info for a specific chat (reactive through the memo)
   const getChatInfo = (chatId: string): ChatDerivedInfo => {
-    return chatInfoMap().get(chatId) || { 
-      otherName: 'Unknown', 
-      otherId: null, 
-      isOnline: false, 
-      isTyping: false, 
-      label: 'Unknown' 
-    };
+    return (
+      chatInfoMap().get(chatId) || {
+        otherName: 'Unknown',
+        otherId: null,
+        isOnline: false,
+        isTyping: false,
+        label: 'Unknown',
+      }
+    );
   };
-  
+
   // Filter chats based on search query
   const filteredChats = createMemo(() => {
     const query = searchQuery().toLowerCase().trim();
     if (!query) return chats();
-    
-    return chats().filter(chat => {
+
+    return chats().filter((chat) => {
       const info = getChatInfo(chat.id);
       // Search by contact name or last message
-      return info.otherName.toLowerCase().includes(query) ||
-             (chat.lastMessage?.toLowerCase().includes(query) ?? false);
+      return (
+        info.otherName.toLowerCase().includes(query) ||
+        (chat.lastMessage?.toLowerCase().includes(query) ?? false)
+      );
     });
   });
-  
+
   // Convert chats to ListboxItems (they already have `id`)
   const items = (): ChatItem[] => filteredChats() as ChatItem[];
 
@@ -132,25 +136,23 @@ export function ChatList(props: Props) {
     return (
       <div
         class={`w-full px-4 py-3 text-left border-b border-wa-border dark:border-wa-dark-border transition-colors cursor-pointer
-          ${isSelected() 
-            ? 'bg-wa-sidebar-active dark:bg-wa-dark-sidebar-active' 
-            : 'hover:bg-wa-sidebar-hover dark:hover:bg-wa-dark-sidebar-hover bg-transparent'
+          ${
+            isSelected()
+              ? 'bg-wa-teal/10 dark:bg-wa-teal/20 border-l-4 border-l-wa-teal'
+              : 'hover:bg-wa-sidebar-hover dark:hover:bg-wa-dark-sidebar-hover bg-transparent border-l-4 border-l-transparent'
           }
-          ${isActive() 
-            ? 'ring-2 ring-wa-teal ring-inset' 
-            : 'focus:ring-2 focus:ring-wa-teal focus:ring-inset'
-          }`}
+          ${isActive() ? 'bg-wa-sidebar-active dark:bg-wa-dark-sidebar-active' : ''}`}
       >
         {/* Screen reader text */}
         <span class="sr-only">{info().label}</span>
-        
+
         {/* Visual content */}
         <div class="flex items-center gap-3" aria-hidden="true">
           {/* Avatar */}
           <div class="w-12 h-12 rounded-full bg-wa-teal flex items-center justify-center text-white font-semibold text-lg flex-shrink-0">
             {info().otherName.charAt(0).toUpperCase()}
           </div>
-          
+
           {/* Chat info */}
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2">
@@ -176,7 +178,10 @@ export function ChatList(props: Props) {
     <nav class="flex-1 flex flex-col overflow-hidden" aria-label="Chat list">
       {/* Chat list header */}
       <div class="flex items-center justify-between px-4 py-3 border-b border-wa-border dark:border-wa-dark-border">
-        <h2 id="chats-heading" class="text-base font-semibold text-wa-text-primary dark:text-wa-dark-text-primary">
+        <h2
+          id="chats-heading"
+          class="text-base font-semibold text-wa-text-primary dark:text-wa-dark-text-primary"
+        >
           Chats
         </h2>
         <Button
@@ -190,11 +195,7 @@ export function ChatList(props: Props) {
 
       {/* Search input */}
       <div class="px-3 py-2 border-b border-wa-border dark:border-wa-dark-border">
-        <TextField
-          value={searchQuery()}
-          onChange={setSearchQuery}
-          class="relative"
-        >
+        <TextField value={searchQuery()} onChange={setSearchQuery} class="relative">
           <TextField.Label class="sr-only">Search contacts or messages</TextField.Label>
           {/* Search icon */}
           <svg
@@ -204,7 +205,12 @@ export function ChatList(props: Props) {
             viewBox="0 0 24 24"
             aria-hidden="true"
           >
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
           </svg>
           <TextField.Input
             placeholder="Search contacts or messages"
@@ -218,7 +224,12 @@ export function ChatList(props: Props) {
               aria-label="Clear search"
             >
               <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </Button>
           </Show>

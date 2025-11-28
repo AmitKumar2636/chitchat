@@ -5,9 +5,15 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
+    "core:window:allow-close",
+    "core:window:allow-destroy",
     "opener:default",
     "updater:default",
     "process:allow-restart",
-    "process:allow-exit"
+    "process:allow-exit",
+    "notification:default",
+    "notification:allow-is-permission-granted",
+    "notification:allow-request-permission",
+    "notification:allow-notify"
   ]
 }

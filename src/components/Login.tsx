@@ -31,23 +31,21 @@ export function Login() {
   }
 
   return (
-    <main 
+    <main
       class="flex flex-col items-center justify-center min-h-screen p-8"
       style="background: linear-gradient(180deg, #075e54 0%, #075e54 30%, #efeae2 30%)"
     >
       <h1 class="text-4xl font-bold text-white mb-2">Chitchat</h1>
-      <h2 class="text-lg text-white/85 mb-8">
-        {isSignUp() ? 'Create Account' : 'Sign In'}
-      </h2>
+      <h2 class="text-lg text-white/85 mb-8">{isSignUp() ? 'Create Account' : 'Sign In'}</h2>
 
-      <form 
-        onSubmit={handleSubmit} 
+      <form
+        onSubmit={handleSubmit}
         autocomplete="off"
         class="flex flex-col gap-4 w-full max-w-[360px] bg-white dark:bg-wa-dark-sidebar p-8 rounded-lg shadow-lg"
       >
         {isSignUp() && (
-          <TextField 
-            value={displayName()} 
+          <TextField
+            value={displayName()}
             onChange={setDisplayName}
             required
             class="flex flex-col gap-1"
@@ -60,13 +58,8 @@ export function Login() {
             />
           </TextField>
         )}
-        
-        <TextField 
-          value={email()} 
-          onChange={setEmail}
-          required
-          class="flex flex-col gap-1"
-        >
+
+        <TextField value={email()} onChange={setEmail} required class="flex flex-col gap-1">
           <TextField.Label class="sr-only">Email</TextField.Label>
           <TextField.Input
             type="email"
@@ -75,13 +68,8 @@ export function Login() {
             class="w-full px-4 py-3 bg-wa-header dark:bg-wa-dark-header border border-wa-border dark:border-wa-dark-border rounded-lg text-wa-text-primary dark:text-wa-dark-text-primary placeholder:text-wa-text-muted focus:outline-none focus:border-wa-teal focus:bg-white dark:focus:bg-wa-dark-sidebar transition-colors"
           />
         </TextField>
-        
-        <TextField 
-          value={password()} 
-          onChange={setPassword}
-          required
-          class="flex flex-col gap-1"
-        >
+
+        <TextField value={password()} onChange={setPassword} required class="flex flex-col gap-1">
           <TextField.Label class="sr-only">Password</TextField.Label>
           <TextField.Input
             type="password"
@@ -92,10 +80,7 @@ export function Login() {
         </TextField>
 
         {error() && (
-          <p 
-            class="text-red-600 text-sm p-2 bg-red-50 dark:bg-red-900/20 rounded" 
-            role="alert"
-          >
+          <p class="text-red-600 text-sm p-2 bg-red-50 dark:bg-red-900/20 rounded" role="alert">
             {error()}
           </p>
         )}

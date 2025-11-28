@@ -22,10 +22,7 @@ export function subscribeToMessages(
   chatId: string,
   callback: (messages: Message[]) => void
 ): Unsubscribe {
-  const q = query(
-    collection(db, 'chats', chatId, 'messages'),
-    orderBy('timestamp', 'asc')
-  );
+  const q = query(collection(db, 'chats', chatId, 'messages'), orderBy('timestamp', 'asc'));
 
   return onSnapshot(q, (snapshot) => {
     const messages = snapshot.docs.map((doc) => ({
@@ -62,10 +59,7 @@ export async function sendMessage(
 }
 
 // Subscribe to user's chats (real-time)
-export function subscribeToChats(
-  userId: string,
-  callback: (chats: Chat[]) => void
-): Unsubscribe {
+export function subscribeToChats(userId: string, callback: (chats: Chat[]) => void): Unsubscribe {
   const q = query(
     collection(db, 'chats'),
     where('participants', 'array-contains', userId),
@@ -98,10 +92,7 @@ export async function createChat(
   userName2: string
 ): Promise<string> {
   // Check if chat already exists
-  const q = query(
-    collection(db, 'chats'),
-    where('participants', 'array-contains', userId1)
-  );
+  const q = query(collection(db, 'chats'), where('participants', 'array-contains', userId1));
   const snapshot = await getDocs(q);
 
   for (const doc of snapshot.docs) {
@@ -128,11 +119,7 @@ export async function createChat(
 
 // Find user by email
 export async function findUserByEmail(email: string): Promise<User | null> {
-  const q = query(
-    collection(db, 'users'),
-    where('email', '==', email),
-    limit(1)
-  );
+  const q = query(collection(db, 'users'), where('email', '==', email), limit(1));
   const snapshot = await getDocs(q);
 
   if (snapshot.empty) {
@@ -155,10 +142,7 @@ export async function setTypingStatus(
 }
 
 // Update user presence (online/offline)
-export async function updateUserPresence(
-  userId: string,
-  isOnline: boolean
-): Promise<void> {
+export async function updateUserPresence(userId: string, isOnline: boolean): Promise<void> {
   try {
     await updateDoc(doc(db, 'users', userId), {
       isOnline,

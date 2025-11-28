@@ -14,7 +14,7 @@ const store = createRoot(() => {
   };
 
   const [theme, setTheme] = createSignal<Theme>(getInitialTheme());
-  
+
   // Computed: is dark mode actually active?
   const isDark = (): boolean => {
     const currentTheme = theme();
@@ -35,11 +35,12 @@ createRoot(() => {
     on(theme, (currentTheme) => {
       // Persist to localStorage
       localStorage.setItem('chitchat-theme', currentTheme);
-      
+
       // Apply dark class to document
-      const dark = currentTheme === 'dark' || 
+      const dark =
+        currentTheme === 'dark' ||
         (currentTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-      
+
       if (dark) {
         document.documentElement.classList.add('dark');
       } else {
@@ -61,7 +62,7 @@ createRoot(() => {
       }
     }
   };
-  
+
   mediaQuery.addEventListener('change', handleSystemChange);
 });
 

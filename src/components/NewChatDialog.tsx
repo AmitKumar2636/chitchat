@@ -69,18 +69,21 @@ export function NewChatDialog(props: Props) {
               </Dialog.Title>
               <Dialog.CloseButton class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-wa-sidebar-hover dark:hover:bg-wa-dark-sidebar-hover transition-colors focus:outline-none focus:ring-2 focus:ring-wa-teal">
                 <svg viewBox="0 0 24 24" width="20" height="20" class="text-wa-text-secondary">
-                  <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                  <path
+                    fill="currentColor"
+                    d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+                  />
                 </svg>
               </Dialog.CloseButton>
             </div>
-            
+
             <Dialog.Description class="text-sm text-wa-text-secondary dark:text-wa-dark-text-secondary mb-4">
               Enter the email of the person you want to chat with.
             </Dialog.Description>
-            
+
             <form onSubmit={handleSubmit} autocomplete="off" class="flex flex-col gap-4">
-              <TextField 
-                value={email()} 
+              <TextField
+                value={email()}
                 onChange={setEmail}
                 validationState={error() ? 'invalid' : 'valid'}
                 required
@@ -101,7 +104,7 @@ export function NewChatDialog(props: Props) {
                   {error()}
                 </TextField.ErrorMessage>
               </TextField>
-              
+
               <div class="flex justify-end gap-3 mt-2">
                 <Button
                   onClick={props.onClose}
