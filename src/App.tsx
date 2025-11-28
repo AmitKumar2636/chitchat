@@ -18,7 +18,7 @@ import { ThemeToggle } from './components/ThemeToggle';
 import { user, loading, initAuthListener, cleanupAuthListener } from './stores/auth';
 import { initChatsListener, cleanupChatsListener, cleanupMessagesListener } from './stores/chats';
 import { signOut } from './services/auth';
-import { updateUserPresence } from './services/messages';
+import { initUserPresence, cleanupUserPresence } from './services/messages';
 // Initialize theme on app load
 import './stores/theme';
 
@@ -30,26 +30,21 @@ function App() {
     initAuthListener();
 
     // Use Tauri's onCloseRequested to properly handle window close
-    // This allows us to wait for the async presence update to complete
+    // This allows us to set user offline before closing
     getCurrentWindow()
       .onCloseRequested(async (event) => {
         const currentUser = user();
         if (currentUser) {
-          // Prevent the window from closing immediately so we can update presence
           event.preventDefault();
 
           try {
-            // Set user as offline before closing
-            await updateUserPresence(currentUser.uid, false);
+            await cleanupUserPresence(currentUser.uid);
           } catch (error) {
-            console.error('Failed to update presence on close:', error);
+            console.error('Failed to cleanup presence on close:', error);
           }
 
-          // Now force close the window (bypass the close request handler)
-          const appWindow = getCurrentWindow();
-          await appWindow.destroy();
+          await getCurrentWindow().destroy();
         }
-        // If no user is logged in, let the window close normally (don't preventDefault)
       })
       .then((unlisten) => {
         closeUnlisten = unlisten;
@@ -58,38 +53,25 @@ function App() {
         console.error('Failed to setup close handler:', err);
       });
 
-    // Handle visibility change (e.g., tab becomes hidden)
-    const handleVisibilityChange = () => {
-      const currentUser = user();
-      if (currentUser) {
-        updateUserPresence(currentUser.uid, document.visibilityState === 'visible');
-      }
-    };
-
     // Global keyboard shortcuts
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only handle shortcuts when logged in
       if (!user()) return;
 
-      // Ctrl+N or Cmd+N: New chat
       if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
         e.preventDefault();
         setShowNewChat(true);
       }
 
-      // Escape: Close dialogs
       if (e.key === 'Escape' && showNewChat()) {
         e.preventDefault();
         setShowNewChat(false);
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
     document.addEventListener('keydown', handleKeyDown);
 
     onCleanup(() => {
       if (closeUnlisten) closeUnlisten();
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
       document.removeEventListener('keydown', handleKeyDown);
     });
   });
@@ -101,13 +83,12 @@ function App() {
   });
 
   // Initialize chats and presence when user logs in
-  // Using on() for explicit dependency tracking
   createEffect(
     on(user, (u) => {
       if (u) {
         initChatsListener(u.uid);
-        // Set user as online
-        updateUserPresence(u.uid, true);
+        // Initialize presence - Firebase handles online/offline automatically
+        initUserPresence(u.uid);
       }
     })
   );
@@ -115,8 +96,7 @@ function App() {
   async function handleSignOut() {
     const currentUser = user();
     if (currentUser) {
-      // Set user as offline before signing out
-      await updateUserPresence(currentUser.uid, false);
+      await cleanupUserPresence(currentUser.uid);
     }
     cleanupChatsListener();
     cleanupMessagesListener();

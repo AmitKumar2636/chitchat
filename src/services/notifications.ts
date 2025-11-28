@@ -9,6 +9,9 @@ import {
 let notificationsEnabled = false;
 let initialized = false;
 
+// Notification counter for unique IDs (must be 32-bit integer)
+let notificationIdCounter = 1;
+
 /**
  * Initialize the notification system.
  * Checks/requests permission and sets up the notification state.
@@ -64,6 +67,13 @@ export function resetNotifications(): void {
 }
 
 /**
+ * Get unique notification ID
+ */
+function getNotificationId(): number {
+  return notificationIdCounter++;
+}
+
+/**
  * Show a notification for a new message
  * @param senderName - The name of the message sender
  * @param messageText - The message content (will be truncated if too long)
@@ -78,11 +88,13 @@ export async function notifyNewMessage(senderName: string, messageText: string):
     const truncatedMessage =
       messageText.length > 100 ? messageText.substring(0, 97) + '...' : messageText;
 
-    // Send notification for new message
-    // Windows Toast Notifications use the system default sound
+    // Send notification with unique ID
+    // Windows uses UWP toast schema sound names: Default, IM, Mail, Reminder, SMS, Alarm, etc.
     sendNotification({
+      id: getNotificationId(),
       title: `New message from ${senderName}`,
       body: truncatedMessage,
+      sound: 'Default',
     });
   } catch (error) {
     console.error('Failed to send message notification:', error);
@@ -100,8 +112,10 @@ export async function notifyUserOnline(userName: string): Promise<void> {
 
   try {
     sendNotification({
+      id: getNotificationId(),
       title: 'Contact Online',
       body: `${userName} is now online`,
+      sound: 'Default',
     });
   } catch (error) {
     console.error('Failed to send online notification:', error);
@@ -119,8 +133,10 @@ export async function notifyUserOffline(userName: string): Promise<void> {
 
   try {
     sendNotification({
+      id: getNotificationId(),
       title: 'Contact Offline',
       body: `${userName} is now offline`,
+      sound: 'Default',
     });
   } catch (error) {
     console.error('Failed to send offline notification:', error);
@@ -138,7 +154,12 @@ export async function showNotification(title: string, body: string): Promise<voi
   }
 
   try {
-    sendNotification({ title, body });
+    sendNotification({
+      id: getNotificationId(),
+      title,
+      body,
+      sound: 'Default',
+    });
   } catch (error) {
     console.error('Failed to send notification:', error);
   }

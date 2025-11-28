@@ -250,71 +250,77 @@ export async function setTypingStatus(
 let presenceCleanup: (() => void) | null = null;
 
 /**
- * Update user presence (online/offline) with robust onDisconnect handling.
+ * Initialize user presence system using Firebase's .info/connected.
  * 
- * Uses Firebase's .info/connected to detect connection state and re-register
- * onDisconnect handlers whenever the connection is re-established.
- * This is the recommended approach by Firebase for presence systems.
+ * This sets up a listener on .info/connected which:
+ * - Fires with `true` when connected to Firebase servers
+ * - Fires with `false` when disconnected
+ * - Automatically re-registers onDisconnect on reconnection
+ * 
+ * Call this ONCE when user logs in. Firebase handles everything else:
+ * - App crash → onDisconnect fires → user goes offline
+ * - Network loss → onDisconnect fires → user goes offline  
+ * - Reconnect → listener re-fires → onDisconnect re-registered → user goes online
  */
-export async function updateUserPresence(userId: string, isOnline: boolean): Promise<void> {
-  try {
-    const userRef = ref(db, `users/${userId}`);
+export function initUserPresence(userId: string): void {
+  // Clean up any existing listener
+  if (presenceCleanup) {
+    presenceCleanup();
+    presenceCleanup = null;
+  }
 
-    if (isOnline) {
-      // Clean up any existing presence listener
-      if (presenceCleanup) {
-        presenceCleanup();
-        presenceCleanup = null;
-      }
+  const userRef = ref(db, `users/${userId}`);
+  const connectedRef = ref(db, '.info/connected');
 
-      // Subscribe to .info/connected to know when we're connected to Firebase
-      const connectedRef = ref(db, '.info/connected');
-      
-      const unsubscribe = onValue(connectedRef, async (snapshot) => {
-        // If we're not connected, don't do anything yet
-        if (snapshot.val() === false) {
-          return;
-        }
+  const unsubscribe = onValue(connectedRef, (snapshot) => {
+    if (snapshot.val() === false) {
+      // Not connected to Firebase - do nothing, onDisconnect will handle it
+      return;
+    }
 
-        try {
-          // We're connected (or reconnected)!
-          // First, set up the onDisconnect handler BEFORE setting online status
-          // This ensures the handler is registered even if we disconnect immediately after
-          await onDisconnect(userRef).update({
-            isOnline: false,
-            lastSeen: serverTimestamp(),
-          });
-
-          // Now set the user as online
-          await update(userRef, {
-            isOnline: true,
-            lastSeen: serverTimestamp(),
-          });
-        } catch (error) {
-          console.error('Failed to set presence on connect:', error);
-        }
-      });
-
-      // Store cleanup function
-      presenceCleanup = unsubscribe;
-    } else {
-      // Going offline explicitly
-      // Clean up the connection listener
-      if (presenceCleanup) {
-        presenceCleanup();
-        presenceCleanup = null;
-      }
-
-      // Cancel any pending onDisconnect and set offline immediately
-      await onDisconnect(userRef).cancel();
-      await update(userRef, {
+    // Connected! Set up onDisconnect FIRST, then set online
+    onDisconnect(userRef)
+      .update({
         isOnline: false,
         lastSeen: serverTimestamp(),
+      })
+      .then(() => {
+        // Now set online
+        return update(userRef, {
+          isOnline: true,
+          lastSeen: serverTimestamp(),
+        });
+      })
+      .catch((error) => {
+        console.error('Failed to set presence:', error);
       });
-    }
+  });
+
+  presenceCleanup = unsubscribe;
+}
+
+/**
+ * Cleanup presence system and set user offline.
+ * Call this when user explicitly signs out.
+ */
+export async function cleanupUserPresence(userId: string): Promise<void> {
+  // Stop listening to connection state
+  if (presenceCleanup) {
+    presenceCleanup();
+    presenceCleanup = null;
+  }
+
+  try {
+    const userRef = ref(db, `users/${userId}`);
+    
+    // Cancel onDisconnect and set offline manually
+    await onDisconnect(userRef).cancel();
+    await update(userRef, {
+      isOnline: false,
+      lastSeen: serverTimestamp(),
+    });
   } catch (error) {
-    // If doc doesn't exist, the update will fail - log but don't throw
-    console.error('Failed to update presence:', error);
+    console.error('Failed to cleanup presence:', error);
   }
 }
 
