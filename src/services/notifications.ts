@@ -80,7 +80,7 @@ function getNotificationIdForChat(chatId: string): number {
   let hash = 0;
   for (let i = 0; i < chatId.length; i++) {
     const char = chatId.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash | 0; // Convert to 32bit integer
   }
   return Math.abs(hash);
@@ -92,7 +92,11 @@ function getNotificationIdForChat(chatId: string): number {
  * @param senderName - The name of the message sender
  * @param messageText - The message content (will be truncated if too long)
  */
-export async function notifyNewMessage(chatId: string, senderName: string, messageText: string): Promise<void> {
+export async function notifyNewMessage(
+  chatId: string,
+  senderName: string,
+  messageText: string
+): Promise<void> {
   if (!notificationsEnabled) {
     return;
   }

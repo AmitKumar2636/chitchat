@@ -245,6 +245,7 @@ export function AccessibleListbox<T extends ListboxItem>(props: AccessibleListbo
       <div
         ref={containerRef}
         role="listbox"
+        tabIndex={-1}
         aria-label={props.label}
         aria-activedescendant={
           focusedIndex() >= 0 ? `${listboxId}-item-${focusedIndex()}` : undefined
@@ -322,6 +323,7 @@ function ListboxItemWrapper(props: ListboxItemWrapperProps) {
       aria-selected={props.isSelected()}
       tabIndex={props.isTabbable() ? 0 : -1}
       onClick={props.onClick}
+      onKeyDown={() => {}} // Key events handled by parent listbox
       onFocus={props.onFocus}
       class="outline-none"
     >

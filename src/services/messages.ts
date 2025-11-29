@@ -77,7 +77,11 @@ export async function sendMessage(
 
 // Subscribe to user's chats using userChats index (real-time)
 // This subscribes to the userChats/{odId} index, then subscribes to each individual chat
-export function subscribeToChats(userId: string, callback: (chats: Chat[]) => void): Unsubscribe {
+export function subscribeToChats(
+  userId: string,
+  callback: (chats: Chat[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
   const userChatsRef = ref(db, `userChats/${userId}`);
   const chatSubscriptions: Map<string, Unsubscribe> = new Map();
   const chatData: Map<string, Chat> = new Map();
@@ -140,6 +144,7 @@ export function subscribeToChats(userId: string, callback: (chats: Chat[]) => vo
     },
     (error) => {
       console.error('RTDB subscription error:', error);
+      if (onError) onError(error);
     }
   );
 
@@ -217,6 +222,49 @@ export async function createChat(
   return chatId;
 }
 
+/**
+ * Creates a new group chat with multiple participants.
+ *
+ * @param participants - Array of objects containing participant ID and name
+ * @param groupName - The name of the group chat
+ * @returns Promise resolving to the new chat ID
+ */
+export async function createGroupChat(
+  participants: { id: string; name: string }[],
+  groupName: string
+): Promise<string> {
+  const chatsRef = ref(db, 'chats');
+  const newChatRef = push(chatsRef);
+  const chatId = newChatRef.key!;
+
+  const participantsMap: Record<string, boolean> = {};
+  const participantNamesMap: Record<string, string> = {};
+
+  participants.forEach((p) => {
+    participantsMap[p.id] = true;
+    participantNamesMap[p.id] = p.name;
+  });
+
+  await set(newChatRef, {
+    participants: participantsMap,
+    participantNames: participantNamesMap,
+    isGroup: true,
+    groupName: groupName,
+    lastMessage: 'Group created',
+    updatedAt: serverTimestamp(),
+    typing: {},
+  });
+
+  // Add chat to all users' userChats index
+  const updates: Record<string, boolean> = {};
+  participants.forEach((p) => {
+    updates[`userChats/${p.id}/${chatId}`] = true;
+  });
+  await update(ref(db), updates);
+
+  return chatId;
+}
+
 // Find user by email
 export async function findUserByEmail(email: string): Promise<User | null> {
   const usersRef = ref(db, 'users');
@@ -251,15 +299,15 @@ let presenceCleanup: (() => void) | null = null;
 
 /**
  * Initialize user presence system using Firebase's .info/connected.
- * 
+ *
  * This sets up a listener on .info/connected which:
  * - Fires with `true` when connected to Firebase servers
  * - Fires with `false` when disconnected
  * - Automatically re-registers onDisconnect on reconnection
- * 
+ *
  * Call this ONCE when user logs in. Firebase handles everything else:
  * - App crash → onDisconnect fires → user goes offline
- * - Network loss → onDisconnect fires → user goes offline  
+ * - Network loss → onDisconnect fires → user goes offline
  * - Reconnect → listener re-fires → onDisconnect re-registered → user goes online
  */
 export function initUserPresence(userId: string): void {

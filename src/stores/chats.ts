@@ -2,6 +2,9 @@
 // Wrapped in createRoot to ensure proper signal disposal
 import { createSignal, createRoot } from 'solid-js';
 import type { Chat, Message, User } from '../types';
+
+export type ConnectionState = 'idle' | 'connecting' | 'connected' | 'error';
+
 import {
   subscribeToChats,
   subscribeToMessages,
@@ -21,7 +24,7 @@ const store = createRoot(() => {
   const [currentChatId, setCurrentChatId] = createSignal<string | null>(null);
   const [currentChat, setCurrentChat] = createSignal<Chat | null>(null);
   const [messages, setMessages] = createSignal<Message[]>([]);
-  const [loadingChats, setLoadingChats] = createSignal(false);
+  const [connectionState, setConnectionState] = createSignal<ConnectionState>('idle');
   const [loadingMessages, setLoadingMessages] = createSignal(false);
   const [otherUserPresence, setOtherUserPresence] = createSignal<Record<string, User>>({});
 
@@ -34,8 +37,8 @@ const store = createRoot(() => {
     setCurrentChat,
     messages,
     setMessages,
-    loadingChats,
-    setLoadingChats,
+    connectionState,
+    setConnectionState,
     loadingMessages,
     setLoadingMessages,
     otherUserPresence,
@@ -53,8 +56,8 @@ const {
   setCurrentChat,
   messages,
   setMessages,
-  loadingChats,
-  setLoadingChats,
+  connectionState,
+  setConnectionState,
   loadingMessages,
   setLoadingMessages,
   otherUserPresence,
@@ -76,7 +79,7 @@ let presenceInitialStates: Set<string> = new Set(); // Set of userIds that have 
 // Subscribe to user's chat list
 export async function initChatsListener(userId: string) {
   cleanupChatsListener();
-  setLoadingChats(true);
+  setConnectionState('connecting');
   loggedInUserId = userId;
   isInitialChatsLoad = true;
   notifiedMessageTimestamps.clear();
@@ -85,16 +88,69 @@ export async function initChatsListener(userId: string) {
   // Initialize notifications when user logs in
   await initNotifications();
 
-  chatsUnsubscribe = subscribeToChats(userId, (newChats) => {
-    // On initial load, just record the current timestamps - don't notify
-    if (isInitialChatsLoad) {
+  chatsUnsubscribe = subscribeToChats(
+    userId,
+    (newChats) => {
+      // On initial load, just record the current timestamps - don't notify
+      if (isInitialChatsLoad) {
+        newChats.forEach((chat) => {
+          const timestamp = typeof chat.updatedAt === 'number' ? chat.updatedAt : Date.now();
+          notifiedMessageTimestamps.set(chat.id, timestamp);
+        });
+        isInitialChatsLoad = false;
+        setChats(newChats);
+        setConnectionState('connected');
+
+        // Update current chat if selected
+        const currentId = currentChatId();
+        if (currentId) {
+          const updated = newChats.find((c) => c.id === currentId);
+          if (updated) setCurrentChat(updated);
+        }
+
+        // Subscribe to presence for all other users in chats
+        updatePresenceSubscriptions(newChats, userId);
+        return;
+      }
+
+      // Not initial load - check for new messages
       newChats.forEach((chat) => {
-        const timestamp = typeof chat.updatedAt === 'number' ? chat.updatedAt : Date.now();
-        notifiedMessageTimestamps.set(chat.id, timestamp);
+        const chatTimestamp = typeof chat.updatedAt === 'number' ? chat.updatedAt : 0;
+        const lastNotifiedTimestamp = notifiedMessageTimestamps.get(chat.id) || 0;
+
+        // Only notify if:
+        // 1. The chat timestamp is newer than what we last notified
+        // 2. We know who sent it (lastMessageSenderId is defined)
+        // 3. It's not from the current user
+        // 4. Not viewing this chat with window visible
+        const isNewerMessage = chatTimestamp > lastNotifiedTimestamp;
+        const hasSenderId =
+          chat.lastMessageSenderId !== undefined && chat.lastMessageSenderId !== null;
+        const isFromOther = chat.lastMessageSenderId !== loggedInUserId;
+        const isViewingChat =
+          chat.id === currentChatId() && !document.hidden && document.hasFocus();
+
+        if (isNewerMessage && hasSenderId && isFromOther && !isViewingChat && chat.lastMessage) {
+          const senderId = chat.lastMessageSenderId;
+          const senderName = senderId
+            ? chat.participantNames?.[senderId] ||
+            otherUserPresence()[senderId]?.displayName ||
+            otherUserPresence()[senderId]?.email ||
+            'Someone'
+            : 'Someone';
+
+          notifyNewMessage(chat.id, senderName, chat.lastMessage);
+
+          // Update the last notified timestamp for this chat
+          notifiedMessageTimestamps.set(chat.id, chatTimestamp);
+        } else if (isNewerMessage) {
+          // Still update the timestamp even if we didn't notify (e.g., own message or viewing chat)
+          notifiedMessageTimestamps.set(chat.id, chatTimestamp);
+        }
       });
-      isInitialChatsLoad = false;
+
       setChats(newChats);
-      setLoadingChats(false);
+      setConnectionState('connected');
 
       // Update current chat if selected
       const currentId = currentChatId();
@@ -105,57 +161,12 @@ export async function initChatsListener(userId: string) {
 
       // Subscribe to presence for all other users in chats
       updatePresenceSubscriptions(newChats, userId);
-      return;
+    },
+    (error) => {
+      console.error('Failed to subscribe to chats:', error);
+      setConnectionState('error');
     }
-
-    // Not initial load - check for new messages
-    newChats.forEach((chat) => {
-      const chatTimestamp = typeof chat.updatedAt === 'number' ? chat.updatedAt : 0;
-      const lastNotifiedTimestamp = notifiedMessageTimestamps.get(chat.id) || 0;
-
-      // Only notify if:
-      // 1. The chat timestamp is newer than what we last notified
-      // 2. We know who sent it (lastMessageSenderId is defined)
-      // 3. It's not from the current user
-      // 4. Not viewing this chat with window visible
-      const isNewerMessage = chatTimestamp > lastNotifiedTimestamp;
-      const hasSenderId =
-        chat.lastMessageSenderId !== undefined && chat.lastMessageSenderId !== null;
-      const isFromOther = chat.lastMessageSenderId !== loggedInUserId;
-      const isViewingChat = chat.id === currentChatId() && !document.hidden && document.hasFocus();
-
-      if (isNewerMessage && hasSenderId && isFromOther && !isViewingChat && chat.lastMessage) {
-        const senderId = chat.lastMessageSenderId;
-        const senderName = senderId
-          ? chat.participantNames?.[senderId] ||
-          otherUserPresence()[senderId]?.displayName ||
-          otherUserPresence()[senderId]?.email ||
-          'Someone'
-          : 'Someone';
-
-        notifyNewMessage(chat.id, senderName, chat.lastMessage);
-
-        // Update the last notified timestamp for this chat
-        notifiedMessageTimestamps.set(chat.id, chatTimestamp);
-      } else if (isNewerMessage) {
-        // Still update the timestamp even if we didn't notify (e.g., own message or viewing chat)
-        notifiedMessageTimestamps.set(chat.id, chatTimestamp);
-      }
-    });
-
-    setChats(newChats);
-    setLoadingChats(false);
-
-    // Update current chat if selected
-    const currentId = currentChatId();
-    if (currentId) {
-      const updated = newChats.find((c) => c.id === currentId);
-      if (updated) setCurrentChat(updated);
-    }
-
-    // Subscribe to presence for all other users in chats
-    updatePresenceSubscriptions(newChats, userId);
-  });
+  );
 }
 
 // Subscribe to presence for other users in chats
@@ -272,7 +283,37 @@ export {
   currentChatId,
   currentChat,
   messages,
-  loadingChats,
+  connectionState,
   loadingMessages,
   otherUserPresence,
+  derivedContacts,
 };
+
+import { createMemo } from 'solid-js';
+import { user } from './auth';
+import type { Contact } from '../types';
+
+// Derived unique contacts from existing chats
+const derivedContacts = createMemo(() => {
+  const currentUser = user();
+  const allChats = chats();
+  const contactsMap = new Map<string, Contact>();
+
+  if (!currentUser) return [];
+
+  allChats.forEach((chat) => {
+    if (!chat.isGroup && chat.participants) {
+      const otherId = Object.keys(chat.participants).find((id) => id !== currentUser.uid);
+      if (otherId && chat.participantNames?.[otherId]) {
+        contactsMap.set(otherId, {
+          id: otherId,
+          displayName: chat.participantNames[otherId],
+          email: '', // Email might not be available in chat metadata
+          photoURL: null,
+        });
+      }
+    }
+  });
+
+  return Array.from(contactsMap.values());
+});

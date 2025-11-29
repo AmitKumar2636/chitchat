@@ -9,10 +9,21 @@ export interface User {
   lastSeen?: Date | number;
 }
 
+export interface Contact {
+  id: string;
+  email?: string;
+  displayName: string;
+  photoURL?: string | null;
+}
+
 export interface Chat {
   id: string;
   participants: Record<string, boolean>; // { odId1: true, odId2: true } for RTDB rules
   participantNames?: Record<string, string>; // { odId1: "Name1", odId2: "Name2" }
+  /** Whether this is a group chat */
+  isGroup?: boolean;
+  /** Name of the group (required if isGroup is true) */
+  groupName?: string;
   lastMessage: string;
   lastMessageSenderId?: string; // ID of user who sent the last message
   updatedAt: Date | number;

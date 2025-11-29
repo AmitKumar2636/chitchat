@@ -12,9 +12,16 @@ import { Show, createMemo, createSignal } from 'solid-js';
 import { Button } from '@kobalte/core/button';
 import { TextField } from '@kobalte/core/text-field';
 import { AccessibleListbox, type ListboxItem } from './AccessibleListbox';
-import { chats, loadingChats, currentChatId, selectChat, otherUserPresence } from '../stores/chats';
+import {
+  chats,
+  connectionState,
+  currentChatId,
+  selectChat,
+  otherUserPresence,
+} from '../stores/chats';
 import { user } from '../stores/auth';
 import type { Chat } from '../types';
+import { UI_LABELS } from '../constants/messages';
 
 // ============================================================================
 // Types
@@ -53,28 +60,41 @@ function useChatDerivedInfo() {
     const infoMap = new Map<string, ChatDerivedInfo>();
 
     for (const chat of chatList) {
-      // Calculate other participant (participants is now an object { odId: true })
-      const participantIds = Object.keys(chat.participants || {});
-      const otherId = currentUser
-        ? participantIds.find((id) => id !== currentUser.uid) || null
-        : null;
+      if (chat.isGroup) {
+        const otherName = chat.groupName || UI_LABELS.GROUP_CHAT_DEFAULT;
+        const otherId = null;
+        const isOnline = false;
 
-      // Calculate name
-      const otherName = (otherId && chat.participantNames?.[otherId]) || 'Unknown';
+        const isTyping = chat.typing
+          ? Object.entries(chat.typing).some(
+              ([uid, typing]) => uid !== currentUser?.uid && typing === true
+            )
+          : false;
 
-      // Calculate online status
-      const isOnline = otherId ? presence[otherId]?.isOnline || false : false;
+        let label = otherName;
+        if (isTyping) label += `, ${UI_LABELS.SOMEONE_TYPING}`;
+        if (chat.lastMessage) label += `, last message: ${chat.lastMessage}`;
 
-      // Calculate typing status
-      const isTyping = otherId && chat.typing ? chat.typing[otherId] === true : false;
+        infoMap.set(chat.id, { otherName, otherId, isOnline, isTyping, label });
+      } else {
+        const participantIds = Object.keys(chat.participants || {});
+        const otherId = currentUser
+          ? participantIds.find((id) => id !== currentUser.uid) || null
+          : null;
 
-      // Build accessible label
-      let label = otherName;
-      label += isOnline ? ', online' : ', offline';
-      if (isTyping) label += ', typing';
-      if (chat.lastMessage) label += `, last message: ${chat.lastMessage}`;
+        const otherName = (otherId && chat.participantNames?.[otherId]) || UI_LABELS.UNKNOWN_USER;
 
-      infoMap.set(chat.id, { otherName, otherId, isOnline, isTyping, label });
+        const isOnline = otherId ? presence[otherId]?.isOnline || false : false;
+
+        const isTyping = otherId && chat.typing ? chat.typing[otherId] === true : false;
+
+        let label = otherName;
+        label += isOnline ? `, ${UI_LABELS.ONLINE}` : `, ${UI_LABELS.OFFLINE}`;
+        if (isTyping) label += `, ${UI_LABELS.TYPING}`;
+        if (chat.lastMessage) label += `, last message: ${chat.lastMessage}`;
+
+        infoMap.set(chat.id, { otherName, otherId, isOnline, isTyping, label });
+      }
     }
 
     return infoMap;
@@ -183,7 +203,7 @@ export function ChatList(props: Props) {
           id="chats-heading"
           class="text-base font-semibold text-wa-text-primary dark:text-wa-dark-text-primary"
         >
-          Chats
+          {UI_LABELS.CHATS_HEADING}
         </h2>
         <Button
           onClick={props.onNewChat}
@@ -197,7 +217,7 @@ export function ChatList(props: Props) {
       {/* Search input */}
       <div class="px-3 py-2 border-b border-wa-border dark:border-wa-dark-border">
         <TextField value={searchQuery()} onChange={setSearchQuery} class="relative">
-          <TextField.Label class="sr-only">Search contacts or messages</TextField.Label>
+          <TextField.Label class="sr-only">{UI_LABELS.SEARCH_PLACEHOLDER}</TextField.Label>
           {/* Search icon */}
           <svg
             class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-wa-text-secondary dark:text-wa-dark-text-secondary pointer-events-none z-10"
@@ -214,7 +234,7 @@ export function ChatList(props: Props) {
             />
           </svg>
           <TextField.Input
-            placeholder="Search contacts or messages"
+            placeholder={UI_LABELS.SEARCH_PLACEHOLDER}
             class="w-full pl-10 pr-10 py-2 text-sm rounded-lg bg-wa-sidebar-hover dark:bg-wa-dark-sidebar-hover text-wa-text-primary dark:text-wa-dark-text-primary placeholder:text-wa-text-secondary dark:placeholder:text-wa-dark-text-secondary border border-transparent focus:border-wa-teal focus:outline-none focus:ring-1 focus:ring-wa-teal"
           />
           {/* Clear button */}
@@ -238,40 +258,50 @@ export function ChatList(props: Props) {
       </div>
 
       <Show
-        when={!loadingChats()}
+        when={connectionState() !== 'connecting' && connectionState() !== 'idle'}
         fallback={
           <p class="p-4 text-wa-text-secondary dark:text-wa-dark-text-secondary" role="status">
-            Loading chats...
+            {UI_LABELS.LOADING_CHATS}
           </p>
         }
       >
         <Show
-          when={chats().length > 0}
+          when={connectionState() !== 'error'}
           fallback={
-            <p class="p-8 text-center text-wa-text-secondary dark:text-wa-dark-text-secondary">
-              No chats yet. Start a new conversation!
-            </p>
+            <div class="p-4 text-center text-red-500 dark:text-red-400" role="alert">
+              <p>Failed to load chats.</p>
+              <p class="text-sm mt-1">Please check your connection.</p>
+            </div>
           }
         >
           <Show
-            when={items().length > 0}
+            when={chats().length > 0}
             fallback={
               <p class="p-8 text-center text-wa-text-secondary dark:text-wa-dark-text-secondary">
-                No contacts match "{searchQuery()}"
+                {UI_LABELS.NO_CHATS}
               </p>
             }
           >
-            <AccessibleListbox
-              items={items()}
-              activeId={currentChatId()}
-              onSelect={handleSelect}
-              label="Contacts. Use arrow keys to navigate."
-              id="chat-list"
-              class="flex-1 overflow-y-auto"
-              initialFocusLast={false}
+            <Show
+              when={items().length > 0}
+              fallback={
+                <p class="p-8 text-center text-wa-text-secondary dark:text-wa-dark-text-secondary">
+                  {UI_LABELS.NO_CONTACTS_MATCH} "{searchQuery()}"
+                </p>
+              }
             >
-              {renderChatItem}
-            </AccessibleListbox>
+              <AccessibleListbox
+                items={items()}
+                activeId={currentChatId()}
+                onSelect={handleSelect}
+                label="Contacts. Use arrow keys to navigate."
+                id="chat-list"
+                class="flex-1 overflow-y-auto"
+                initialFocusLast={false}
+              >
+                {renderChatItem}
+              </AccessibleListbox>
+            </Show>
           </Show>
         </Show>
       </Show>

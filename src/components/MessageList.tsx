@@ -10,6 +10,7 @@
 import { createSignal, createEffect, Show, on } from 'solid-js';
 import { AccessibleListbox, type ListboxItem } from './AccessibleListbox';
 import type { Message } from '../types';
+import { UI_LABELS } from '../constants/messages';
 
 // ============================================================================
 // Types
@@ -58,7 +59,7 @@ function formatTimestamp(timestamp: Date | number | { toDate?: () => Date } | nu
 }
 
 function getMessageLabel(message: Message, isSent: boolean): string {
-  const sender = isSent ? 'You' : message.senderName;
+  const sender = isSent ? UI_LABELS.YOU : message.senderName;
   const timestamp = formatTimestamp(message.timestamp);
   const timeLabel = timestamp ? `, ${timestamp}` : '';
   return `${sender}: ${message.text}${timeLabel}`;
@@ -149,10 +150,9 @@ export function MessageList(props: Props) {
     return (
       <div
         class={`w-fit max-w-[70%] px-3 py-2 rounded-lg shadow-sm transition-all
-          ${
-            isSent()
-              ? 'self-end bg-wa-outgoing dark:bg-wa-dark-outgoing rounded-tr-none ml-auto'
-              : 'self-start bg-wa-incoming dark:bg-wa-dark-incoming rounded-tl-none mr-auto'
+          ${isSent()
+            ? 'self-end bg-wa-outgoing dark:bg-wa-dark-outgoing rounded-tr-none ml-auto'
+            : 'self-start bg-wa-incoming dark:bg-wa-dark-incoming rounded-tl-none mr-auto'
           }
           ${isLastInGroup() ? 'mb-2' : 'mb-0.5'}
           ${isActive() ? 'ring-2 ring-wa-teal/50 ring-offset-1' : ''}`}
@@ -196,7 +196,7 @@ export function MessageList(props: Props) {
               class="flex items-center justify-center h-full text-wa-text-secondary dark:text-wa-dark-text-secondary"
               role="status"
             >
-              Loading messages...
+              {UI_LABELS.LOADING_MESSAGES}
             </div>
           }
         >
@@ -204,13 +204,13 @@ export function MessageList(props: Props) {
             when={props.messages.length > 0}
             fallback={
               <div class="flex items-center justify-center h-full text-wa-text-secondary dark:text-wa-dark-text-secondary">
-                <p>No messages yet. Start the conversation!</p>
+                <p>{UI_LABELS.NO_MESSAGES}</p>
               </div>
             }
           >
             <AccessibleListbox
               items={items()}
-              label="Chat messages. Use arrow keys to navigate between messages."
+              label={UI_LABELS.MESSAGE_LIST_LABEL}
               id="message-list"
               class="flex flex-col gap-1"
               initialFocusLast={true}

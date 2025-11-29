@@ -13,10 +13,14 @@ import { sendMessage, setTypingStatus } from '../services/messages';
 import { user } from '../stores/auth';
 import { MessageList } from './MessageList';
 import { playMessageSent } from '../services/sounds';
+import { UI_LABELS } from '../constants/messages';
 
 export function MessageView() {
   const [newMessage, setNewMessage] = createSignal('');
-  const [sending, setSending] = createSignal(false);
+
+  type SendState = 'idle' | 'sending' | 'error';
+  const [sendState, setSendState] = createSignal<SendState>('idle');
+
   const [isTyping, setIsTyping] = createSignal(false);
   let typingTimeout: ReturnType<typeof setTimeout> | null = null;
   let inputRef: HTMLInputElement | undefined;
@@ -27,12 +31,22 @@ export function MessageView() {
     const currentUser = user();
     if (!chat || !currentUser) return { name: 'User', isTyping: false, isOnline: false };
 
+    if (chat.isGroup) {
+      const name = chat.groupName || UI_LABELS.GROUP_CHAT_DEFAULT;
+      const isTyping = chat.typing
+        ? Object.entries(chat.typing).some(
+          ([uid, typing]) => uid !== currentUser.uid && typing === true
+        )
+        : false;
+      return { name, isTyping, isOnline: false };
+    }
+
     // participants is now an object { odId: true }
     const participantIds = Object.keys(chat.participants || {});
     const otherId = participantIds.find((id) => id !== currentUser.uid);
-    if (!otherId) return { name: 'User', isTyping: false, isOnline: false };
+    if (!otherId) return { name: UI_LABELS.UNKNOWN_USER, isTyping: false, isOnline: false };
 
-    const name = chat.participantNames?.[otherId] || 'User';
+    const name = chat.participantNames?.[otherId] || UI_LABELS.UNKNOWN_USER;
     const typing = chat.typing?.[otherId] === true;
     const presence = otherUserPresence();
     const online = presence[otherId]?.isOnline || false;
@@ -77,20 +91,22 @@ export function MessageView() {
 
     if (typingTimeout) clearTimeout(typingTimeout);
     setIsTyping(false);
-    setSending(true);
+    setSendState('sending');
 
     try {
       const senderName = currentUser.displayName || currentUser.email || 'Unknown';
       await sendMessage(chatId, currentUser.uid, senderName, text);
       playMessageSent();
       setNewMessage('');
+      setSendState('idle');
       // Keep focus in the input field after sending
       // Use queueMicrotask for more reliable timing than setTimeout
       queueMicrotask(() => inputRef?.focus());
     } catch (err) {
       console.error('Failed to send message:', err);
-    } finally {
-      setSending(false);
+      setSendState('error');
+      // Reset to idle after 3 seconds so user can try again
+      setTimeout(() => setSendState('idle'), 3000);
     }
   }
 
@@ -101,7 +117,7 @@ export function MessageView() {
         fallback={
           <div class="flex-1 flex flex-col items-center justify-center text-wa-text-secondary dark:text-wa-dark-text-secondary">
             <div class="text-6xl mb-4">💬</div>
-            <p class="text-lg">Select a chat to start messaging</p>
+            <p class="text-lg">{UI_LABELS.SELECT_CHAT_PROMPT}</p>
           </div>
         }
       >
@@ -128,11 +144,11 @@ export function MessageView() {
                         : 'text-wa-text-muted dark:text-wa-dark-text-muted'
                     }
                   >
-                    {otherUserInfo().isOnline ? 'online' : 'offline'}
+                    {otherUserInfo().isOnline ? UI_LABELS.ONLINE : UI_LABELS.OFFLINE}
                   </span>
                 }
               >
-                <span class="text-wa-teal">typing...</span>
+                <span class="text-wa-teal">{UI_LABELS.TYPING}</span>
               </Show>
             </span>
           </div>
@@ -160,26 +176,37 @@ export function MessageView() {
             }}
             class="flex-1"
           >
-            <TextField.Label class="sr-only">Type a message</TextField.Label>
+            <TextField.Label class="sr-only">{UI_LABELS.TYPE_MESSAGE_PLACEHOLDER}</TextField.Label>
             <TextField.Input
               ref={(el: HTMLInputElement) => (inputRef = el)}
-              placeholder="Type a message"
+              placeholder={
+                sendState() === 'error'
+                  ? UI_LABELS.FAILED_TO_SEND
+                  : UI_LABELS.TYPE_MESSAGE_PLACEHOLDER
+              }
               autocomplete="off"
-              class="w-full px-4 py-3 rounded-lg border-none bg-white dark:bg-wa-dark-sidebar text-wa-text-primary dark:text-wa-dark-text-primary placeholder:text-wa-text-muted focus:outline-none focus:ring-1 focus:ring-wa-teal/50"
+              class={`w-full px-4 py-3 rounded-lg border-none bg-white dark:bg-wa-dark-sidebar text-wa-text-primary dark:text-wa-dark-text-primary placeholder:text-wa-text-muted focus:outline-none focus:ring-1 focus:ring-wa-teal/50 ${sendState() === 'error' ? 'ring-2 ring-red-500' : ''}`}
             />
           </TextField>
           <Button
             type="submit"
-            disabled={sending() || !newMessage().trim()}
-            aria-label="Send message"
-            class="w-12 h-12 rounded-full bg-wa-teal text-white flex items-center justify-center hover:bg-wa-dark-green disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-wa-teal focus:ring-offset-2"
+            disabled={sendState() === 'sending' || !newMessage().trim()}
+            aria-label={UI_LABELS.SEND_MESSAGE_LABEL}
+            class={`w-12 h-12 rounded-full text-white flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-wa-teal focus:ring-offset-2 ${sendState() === 'error' ? 'bg-red-500 hover:bg-red-600' : 'bg-wa-teal hover:bg-wa-dark-green'} disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed`}
           >
-            <svg viewBox="0 0 24 24" width="24" height="24">
-              <path
-                fill="currentColor"
-                d="M1.101 21.757L23.8 12.028 1.101 2.3l.011 7.912 13.623 1.816-13.623 1.817-.011 7.912z"
-              />
-            </svg>
+            <Show
+              when={sendState() !== 'sending'}
+              fallback={
+                <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              }
+            >
+              <svg viewBox="0 0 24 24" width="24" height="24">
+                <path
+                  fill="currentColor"
+                  d="M1.101 21.757L23.8 12.028 1.101 2.3l.011 7.912 13.623 1.816-13.623 1.817-.011 7.912z"
+                />
+              </svg>
+            </Show>
           </Button>
         </form>
       </Show>
