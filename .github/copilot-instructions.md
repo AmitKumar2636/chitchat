@@ -3,7 +3,7 @@
 ## Project Overview
 **Chitchat** is a cross-platform text messaging application (text-only, no media).
 - **Desktop Client**: Tauri 2.x + Solid.js + TypeScript (Windows first, then macOS/Linux)
-- **Backend**: Firebase (Authentication + Firestore for real-time messaging)
+- **Backend**: Firebase (Authentication + Realtime Database for real-time messaging)
 - **No custom server** — Firebase handles all cloud logic
 
 ## Architecture
@@ -22,7 +22,7 @@
 ┌─────────▼───────────┐
 │      Firebase       │
 │  - Authentication   │
-│  - Firestore (RT)   │
+│  - Realtime DB      │
 └─────────────────────┘
 ```
 
@@ -34,7 +34,8 @@ chitchat/
 │   ├── services/           # Firebase service wrappers
 │   │   ├── firebase.ts     # Firebase initialization
 │   │   ├── auth.ts         # Authentication functions
-│   │   └── messages.ts     # Firestore message operations
+│   │   ├── messages.ts     # Realtime Database operations
+│   │   └── notifications.ts # Native notifications
 │   ├── types/              # TypeScript interfaces
 │   └── App.tsx
 ├── src-tauri/              # Rust backend for Tauri
@@ -73,24 +74,28 @@ npm run tauri build
 - Functions/variables: `camelCase`
 - Firebase calls wrapped in `src/services/` modules
 
-### Firebase Patterns
+### Firebase Patterns (Realtime Database)
 ```typescript
 // src/services/firebase.ts - Initialize once
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getDatabase } from 'firebase/database';
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const db = getDatabase(app);
 
 // src/services/messages.ts - Real-time listener
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { ref, onValue, push, set } from 'firebase/database';
 
 export function subscribeToMessages(chatId: string, callback: (msgs: Message[]) => void) {
-  const q = query(collection(db, 'chats', chatId, 'messages'), orderBy('timestamp'));
-  return onSnapshot(q, (snapshot) => {
-    callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message)));
+  const messagesRef = ref(db, `messages/${chatId}`);
+  return onValue(messagesRef, (snapshot) => {
+    const messages = [];
+    snapshot.forEach((child) => {
+      messages.push({ id: child.key, ...child.val() });
+    });
+    callback(messages);
   });
 }
 ```
@@ -99,20 +104,25 @@ export function subscribeToMessages(chatId: string, callback: (msgs: Message[]) 
 
 ### State Management
 - **Auth state**: Firebase `onAuthStateChanged` → Solid.js signal
-- **Messages**: Firestore `onSnapshot` → Solid.js store
+- **Messages**: RTDB `onValue` → Solid.js store
 - **UI state**: Local Solid.js signals (no Firebase)
 
-### Firestore Data Model
+### Realtime Database Data Model
 ```
 /users/{userId}
-  - email, displayName, createdAt
+  - email, displayName, createdAt, isOnline, lastSeen
+
+/userChats/{userId}
+  - {chatId}: true
 
 /chats/{chatId}
-  - participants: [userId1, userId2]
+  - participants: { userId1: true, userId2: true }
+  - participantNames: { userId1: "Name", ... }
   - lastMessage, updatedAt
+  - typing: { userId: boolean }
 
-/chats/{chatId}/messages/{messageId}
-  - senderId, text, timestamp
+/messages/{chatId}/{messageId}
+  - senderId, senderName, text, timestamp
 ```
 
 ### Error Handling
@@ -122,7 +132,7 @@ export function subscribeToMessages(chatId: string, callback: (msgs: Message[]) 
 
 ### Security
 - Firebase config in environment variables (`.env`)
-- Firestore Security Rules enforce access control
+- RTDB Security Rules enforce access control
 - Never store sensitive data in Tauri's local storage unencrypted
 
 ## Testing

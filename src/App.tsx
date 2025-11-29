@@ -19,6 +19,7 @@ import { user, loading, initAuthListener, cleanupAuthListener } from './stores/a
 import { initChatsListener, cleanupChatsListener, cleanupMessagesListener } from './stores/chats';
 import { signOut } from './services/auth';
 import { initUserPresence, cleanupUserPresence } from './services/messages';
+import { initSounds } from './services/sounds';
 // Initialize theme on app load
 import './stores/theme';
 
@@ -28,6 +29,7 @@ function App() {
 
   onMount(() => {
     initAuthListener();
+    initSounds();
 
     // Use Tauri's onCloseRequested to properly handle window close
     // This allows us to set user offline before closing

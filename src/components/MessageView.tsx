@@ -12,6 +12,7 @@ import {
 import { sendMessage, setTypingStatus } from '../services/messages';
 import { user } from '../stores/auth';
 import { MessageList } from './MessageList';
+import { playMessageSent } from '../services/sounds';
 
 export function MessageView() {
   const [newMessage, setNewMessage] = createSignal('');
@@ -81,6 +82,7 @@ export function MessageView() {
     try {
       const senderName = currentUser.displayName || currentUser.email || 'Unknown';
       await sendMessage(chatId, currentUser.uid, senderName, text);
+      playMessageSent();
       setNewMessage('');
       // Keep focus in the input field after sending
       // Use queueMicrotask for more reliable timing than setTimeout

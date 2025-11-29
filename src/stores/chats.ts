@@ -122,19 +122,19 @@ export async function initChatsListener(userId: string) {
       const hasSenderId =
         chat.lastMessageSenderId !== undefined && chat.lastMessageSenderId !== null;
       const isFromOther = chat.lastMessageSenderId !== loggedInUserId;
-      const isViewingChat = chat.id === currentChatId() && !document.hidden;
+      const isViewingChat = chat.id === currentChatId() && !document.hidden && document.hasFocus();
 
       if (isNewerMessage && hasSenderId && isFromOther && !isViewingChat && chat.lastMessage) {
         const senderId = chat.lastMessageSenderId;
         const senderName = senderId
           ? chat.participantNames?.[senderId] ||
-            otherUserPresence()[senderId]?.displayName ||
-            otherUserPresence()[senderId]?.email ||
-            'Someone'
+          otherUserPresence()[senderId]?.displayName ||
+          otherUserPresence()[senderId]?.email ||
+          'Someone'
           : 'Someone';
 
-        notifyNewMessage(senderName, chat.lastMessage);
-        
+        notifyNewMessage(chat.id, senderName, chat.lastMessage);
+
         // Update the last notified timestamp for this chat
         notifiedMessageTimestamps.set(chat.id, chatTimestamp);
       } else if (isNewerMessage) {
@@ -192,7 +192,7 @@ function updatePresenceSubscriptions(chatList: Chat[], currentUserIdParam: strin
 
           // Check if this is the initial load for this user
           const isInitialLoad = !presenceInitialStates.has(odId);
-          
+
           if (isInitialLoad) {
             // First time seeing this user - just store state, don't notify
             presenceInitialStates.add(odId);

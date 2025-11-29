@@ -32,7 +32,7 @@ export function subscribeToMessages(
           ...child.val(),
         });
       });
-      // Sort by timestamp (RTDB doesn't guarantee order like Firestore)
+      // Sort by timestamp (RTDB doesn't guarantee order)
       messages.sort((a, b) => {
         const timeA = typeof a.timestamp === 'number' ? a.timestamp : a.timestamp?.getTime?.() || 0;
         const timeB = typeof b.timestamp === 'number' ? b.timestamp : b.timestamp?.getTime?.() || 0;
@@ -312,7 +312,7 @@ export async function cleanupUserPresence(userId: string): Promise<void> {
 
   try {
     const userRef = ref(db, `users/${userId}`);
-    
+
     // Cancel onDisconnect and set offline manually
     await onDisconnect(userRef).cancel();
     await update(userRef, {

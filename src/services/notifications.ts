@@ -74,11 +74,25 @@ function getNotificationId(): number {
 }
 
 /**
+ * Generate a deterministic 32-bit integer ID from a string
+ */
+function getNotificationIdForChat(chatId: string): number {
+  let hash = 0;
+  for (let i = 0; i < chatId.length; i++) {
+    const char = chatId.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash | 0; // Convert to 32bit integer
+  }
+  return Math.abs(hash);
+}
+
+/**
  * Show a notification for a new message
+ * @param chatId - The ID of the chat (used for grouping notifications)
  * @param senderName - The name of the message sender
  * @param messageText - The message content (will be truncated if too long)
  */
-export async function notifyNewMessage(senderName: string, messageText: string): Promise<void> {
+export async function notifyNewMessage(chatId: string, senderName: string, messageText: string): Promise<void> {
   if (!notificationsEnabled) {
     return;
   }
@@ -88,10 +102,10 @@ export async function notifyNewMessage(senderName: string, messageText: string):
     const truncatedMessage =
       messageText.length > 100 ? messageText.substring(0, 97) + '...' : messageText;
 
-    // Send notification with unique ID
-    // Windows uses UWP toast schema sound names: Default, IM, Mail, Reminder, SMS, Alarm, etc.
+    // Send notification with deterministic ID based on chat
+    // This ensures updates to the same chat replace the previous notification
     sendNotification({
-      id: getNotificationId(),
+      id: getNotificationIdForChat(chatId),
       title: `New message from ${senderName}`,
       body: truncatedMessage,
       sound: 'Default',
