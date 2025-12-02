@@ -143,6 +143,10 @@ export function ChatList(props: Props) {
   // Convert chats to ListboxItems (they already have `id`)
   const items = (): ChatItem[] => filteredChats() as ChatItem[];
 
+  // Split into direct chats and groups
+  const directChats = createMemo(() => filteredChats().filter((c) => !c.isGroup) as ChatItem[]);
+  const groupChats = createMemo(() => filteredChats().filter((c) => c.isGroup) as ChatItem[]);
+
   // Handle chat selection
   const handleSelect = (chat: ChatItem) => {
     selectChat(chat.id);
@@ -290,17 +294,41 @@ export function ChatList(props: Props) {
                 </p>
               }
             >
-              <AccessibleListbox
-                items={items()}
-                activeId={currentChatId()}
-                onSelect={handleSelect}
-                label="Contacts. Use arrow keys to navigate."
-                id="chat-list"
-                class="flex-1 overflow-y-auto"
-                initialFocusLast={false}
-              >
-                {renderChatItem}
-              </AccessibleListbox>
+              <div class="flex-1 overflow-y-auto">
+                <Show when={directChats().length > 0}>
+                  <div class="px-4 py-2 text-xs font-semibold text-wa-text-secondary uppercase tracking-wider bg-wa-chat-bg/50 dark:bg-wa-dark-chat-bg/50 sticky top-0 z-10 backdrop-blur-sm">
+                    Direct Messages
+                  </div>
+                  <AccessibleListbox
+                    items={directChats()}
+                    activeId={currentChatId()}
+                    onSelect={handleSelect}
+                    label="Direct Messages"
+                    id="dm-list"
+                    class="pb-2"
+                    initialFocusLast={false}
+                  >
+                    {renderChatItem}
+                  </AccessibleListbox>
+                </Show>
+
+                <Show when={groupChats().length > 0}>
+                  <div class="px-4 py-2 text-xs font-semibold text-wa-text-secondary uppercase tracking-wider bg-wa-chat-bg/50 dark:bg-wa-dark-chat-bg/50 sticky top-0 z-10 backdrop-blur-sm">
+                    Groups
+                  </div>
+                  <AccessibleListbox
+                    items={groupChats()}
+                    activeId={currentChatId()}
+                    onSelect={handleSelect}
+                    label="Groups"
+                    id="group-list"
+                    class="pb-2"
+                    initialFocusLast={false}
+                  >
+                    {renderChatItem}
+                  </AccessibleListbox>
+                </Show>
+              </div>
             </Show>
           </Show>
         </Show>

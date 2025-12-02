@@ -12,11 +12,13 @@ import {
 import { sendMessage, setTypingStatus } from '../services/messages';
 import { user } from '../stores/auth';
 import { MessageList } from './MessageList';
+import { GroupInfoDialog } from './GroupInfoDialog';
 import { playMessageSent } from '../services/sounds';
 import { UI_LABELS } from '../constants/messages';
 
 export function MessageView() {
   const [newMessage, setNewMessage] = createSignal('');
+  const [showGroupInfo, setShowGroupInfo] = createSignal(false);
 
   type SendState = 'idle' | 'sending' | 'error';
   const [sendState, setSendState] = createSignal<SendState>('idle');
@@ -122,36 +124,50 @@ export function MessageView() {
         }
       >
         {/* Chat header */}
-        <header class="flex items-center gap-4 px-4 py-3 bg-wa-header dark:bg-wa-dark-header border-b border-wa-border dark:border-wa-dark-border min-h-[60px]">
-          {/* Avatar */}
-          <div class="w-10 h-10 rounded-full bg-wa-teal flex items-center justify-center text-white font-semibold">
-            {otherUserInfo().name.charAt(0).toUpperCase()}
+        <header class="flex items-center justify-between px-4 py-3 bg-wa-header dark:bg-wa-dark-header border-b border-wa-border dark:border-wa-dark-border min-h-[60px]">
+          <div class="flex items-center gap-4">
+            {/* Avatar */}
+            <div class="w-10 h-10 rounded-full bg-wa-teal flex items-center justify-center text-white font-semibold">
+              {otherUserInfo().name.charAt(0).toUpperCase()}
+            </div>
+
+            {/* User info */}
+            <div class="flex flex-col">
+              <h2 class="font-semibold text-wa-text-primary dark:text-wa-dark-text-primary">
+                {otherUserInfo().name}
+              </h2>
+              <span class="text-sm">
+                <Show
+                  when={otherUserInfo().isTyping}
+                  fallback={
+                    <span
+                      class={
+                        otherUserInfo().isOnline
+                          ? 'text-wa-light-green'
+                          : 'text-wa-text-muted dark:text-wa-dark-text-muted'
+                      }
+                    >
+                      {otherUserInfo().isOnline ? UI_LABELS.ONLINE : UI_LABELS.OFFLINE}
+                    </span>
+                  }
+                >
+                  <span class="text-wa-teal">{UI_LABELS.TYPING}</span>
+                </Show>
+              </span>
+            </div>
           </div>
 
-          {/* User info */}
-          <div class="flex flex-col">
-            <h2 class="font-semibold text-wa-text-primary dark:text-wa-dark-text-primary">
-              {otherUserInfo().name}
-            </h2>
-            <span class="text-sm">
-              <Show
-                when={otherUserInfo().isTyping}
-                fallback={
-                  <span
-                    class={
-                      otherUserInfo().isOnline
-                        ? 'text-wa-light-green'
-                        : 'text-wa-text-muted dark:text-wa-dark-text-muted'
-                    }
-                  >
-                    {otherUserInfo().isOnline ? UI_LABELS.ONLINE : UI_LABELS.OFFLINE}
-                  </span>
-                }
-              >
-                <span class="text-wa-teal">{UI_LABELS.TYPING}</span>
-              </Show>
-            </span>
-          </div>
+          <Show when={currentChat()?.isGroup}>
+            <Button
+              onClick={() => setShowGroupInfo(true)}
+              class="p-2 rounded-full hover:bg-wa-sidebar-hover dark:hover:bg-wa-dark-sidebar-hover text-wa-text-secondary dark:text-wa-dark-text-secondary transition-colors"
+              title="Group Info"
+            >
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
+              </svg>
+            </Button>
+          </Show>
         </header>
 
         {/* Messages area with accessible navigation */}
@@ -209,6 +225,15 @@ export function MessageView() {
             </Show>
           </Button>
         </form>
+      </Show>
+
+      {/* Group Info Dialog */}
+      <Show when={showGroupInfo() && currentChat()?.isGroup && currentChat()}>
+        <GroupInfoDialog
+          chat={currentChat()!}
+          isOpen={showGroupInfo()}
+          onClose={() => setShowGroupInfo(false)}
+        />
       </Show>
     </main>
   );

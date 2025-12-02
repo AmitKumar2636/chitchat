@@ -24,6 +24,8 @@ export interface Chat {
   isGroup?: boolean;
   /** Name of the group (required if isGroup is true) */
   groupName?: string;
+  /** ID of the group owner (who can manage members) */
+  ownerId?: string;
   lastMessage: string;
   lastMessageSenderId?: string; // ID of user who sent the last message
   updatedAt: Date | number;
