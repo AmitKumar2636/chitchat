@@ -10,6 +10,7 @@ import {
   subscribeToMessages,
   subscribeToUserPresence,
 } from '../services/messages';
+import { playMessageReceived } from '../services/sounds';
 import {
   initNotifications,
   notifyNewMessage,
@@ -143,9 +144,17 @@ export async function initChatsListener(userId: string) {
 
           // Update the last notified timestamp for this chat
           notifiedMessageTimestamps.set(chat.id, chatTimestamp);
+
+          // Play sound for new message
+          playMessageReceived();
         } else if (isNewerMessage) {
           // Still update the timestamp even if we didn't notify (e.g., own message or viewing chat)
           notifiedMessageTimestamps.set(chat.id, chatTimestamp);
+
+          // Also play sound if we're viewing the chat but it's from someone else
+          if (isViewingChat && isFromOther) {
+            playMessageReceived();
+          }
         }
       });
 

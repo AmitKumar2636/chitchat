@@ -97,14 +97,30 @@ export function MessageList(props: Props) {
   );
 
   // Announce new messages via live region
+  // Announce new messages via live region
+  let initialLoadDone = false;
+
   createEffect(
     on(
-      () => props.messages.length,
-      (currentCount, previousCount) => {
-        if (previousCount === undefined) return;
+      () => [props.messages.length, props.loading] as const,
+      ([currentCount, loading], prev) => {
+        // Reset if loading starts again (switching chats)
+        if (loading) {
+          initialLoadDone = false;
+          return;
+        }
 
-        if (currentCount > previousCount && previousCount > 0) {
-          const newMessages = props.messages.slice(previousCount);
+        // If we just finished loading (loading false, but we haven't marked done yet)
+        if (!initialLoadDone) {
+          initialLoadDone = true;
+          return; // Skip announcement for initial content
+        }
+
+        const prevCount = prev ? prev[0] : 0;
+
+        // Announce if count increased
+        if (currentCount > prevCount) {
+          const newMessages = props.messages.slice(prevCount);
           const announcements = newMessages.map((msg) => {
             const isSent = msg.senderId === props.currentUserId;
             return getMessageLabel(msg, isSent);

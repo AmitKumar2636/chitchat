@@ -1,5 +1,49 @@
-/**
- * UpdatePage - Full-page update screen shown when updates are available
+  /**
+ *  {
+  "explanation": "Bump version to 0.18.3 in all three version files",
+  "replacements": [
+    {
+      "filePath": "d:\\my projects\\Chitchat\\package.json",
+      "oldString": "{\n  \"name\": \"chitchat\",\n  \"version\": \"0.1.0\",\n  \"description\": \"Cross-platform text messaging application\",",
+      "newString": "{\n  \"name\": \"chitchat\",\n  \"version\": \"0.18.3\",\n  \"description\": \"Cross-platform text messaging application\",",
+      "explanation": "Update package.json version to 0.18.3"
+    },
+    {
+      "filePath": "d:\\my projects\\Chitchat\\src-tauri\\tauri.conf.json",
+      "oldString": "  \"$schema\": \"https://schema.tauri.app/config/2\",\n  \"productName\": \"Chitchat\",\n  \"version\": \"0.1.0\",\n  \"identifier\": \"com.chitchat.desktop\",",
+      "newString": "  \"$schema\": \"https://schema.tauri.app/config/2\",\n  \"productName\": \"Chitchat\",\n  \"version\": \"0.18.3\",\n  \"identifier\": \"com.chitchat.desktop\",",
+      "explanation": "Update tauri.conf.json version to 0.18.3"
+    },
+    {
+      "filePath": "d:\\my projects\\Chitchat\\src-tauri\\Cargo.toml",
+      "oldString": "[package]\nname = \"temp-chitchat\"\nversion = \"0.1.0\"\ndescription = \"A Tauri App\"",
+      "newString": "[package]\nname = \"temp-chitchat\"\nversion = \"0.18.3\"\ndescription = \"A Tauri App\"",
+      "explanation": "Update Cargo.toml version to 0.18.3"
+    }
+  ]
+}{
+  "explanation": "Bump version to 0.18.3 in all three version files",
+  "replacements": [
+    {
+      "filePath": "d:\\my projects\\Chitchat\\package.json",
+      "oldString": "{\n  \"name\": \"chitchat\",\n  \"version\": \"0.1.0\",\n  \"description\": \"Cross-platform text messaging application\",",
+      "newString": "{\n  \"name\": \"chitchat\",\n  \"version\": \"0.18.3\",\n  \"description\": \"Cross-platform text messaging application\",",
+      "explanation": "Update package.json version to 0.18.3"
+    },
+    {
+      "filePath": "d:\\my projects\\Chitchat\\src-tauri\\tauri.conf.json",
+      "oldString": "  \"$schema\": \"https://schema.tauri.app/config/2\",\n  \"productName\": \"Chitchat\",\n  \"version\": \"0.1.0\",\n  \"identifier\": \"com.chitchat.desktop\",",
+      "newString": "  \"$schema\": \"https://schema.tauri.app/config/2\",\n  \"productName\": \"Chitchat\",\n  \"version\": \"0.18.3\",\n  \"identifier\": \"com.chitchat.desktop\",",
+      "explanation": "Update tauri.conf.json version to 0.18.3"
+    },
+    {
+      "filePath": "d:\\my projects\\Chitchat\\src-tauri\\Cargo.toml",
+      "oldString": "[package]\nname = \"temp-chitchat\"\nversion = \"0.1.0\"\ndescription = \"A Tauri App\"",
+      "newString": "[package]\nname = \"temp-chitchat\"\nversion = \"0.18.3\"\ndescription = \"A Tauri App\"",
+      "explanation": "Update Cargo.toml version to 0.18.3"
+    }
+  ]
+} UpdatePage - Full-page update screen shown when updates are available
  */
 import { createSignal, Show } from 'solid-js';
 import { check } from '@tauri-apps/plugin-updater';
