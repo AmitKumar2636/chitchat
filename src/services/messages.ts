@@ -387,3 +387,37 @@ export function subscribeToUserPresence(
     }
   });
 }
+
+// Rename a group
+export async function renameGroup(chatId: string, newName: string): Promise<void> {
+  const chatRef = ref(db, `chats/${chatId}`);
+  await update(chatRef, {
+    groupName: newName,
+  });
+}
+
+// Add a member to a group
+export async function addGroupMember(
+  chatId: string,
+  memberId: string,
+  memberName: string
+): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updates: Record<string, any> = {};
+  updates[`chats/${chatId}/participants/${memberId}`] = true;
+  updates[`chats/${chatId}/participantNames/${memberId}`] = memberName;
+  updates[`userChats/${memberId}/${chatId}`] = true;
+
+  await update(ref(db), updates);
+}
+
+// Remove a member from a group (kick/ban or leave)
+export async function removeGroupMember(chatId: string, memberId: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updates: Record<string, any> = {};
+  updates[`chats/${chatId}/participants/${memberId}`] = null;
+  updates[`chats/${chatId}/participantNames/${memberId}`] = null;
+  updates[`userChats/${memberId}/${chatId}`] = null;
+
+  await update(ref(db), updates);
+}
