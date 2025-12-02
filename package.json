@@ -1,6 +1,6 @@
 {
   "name": "chitchat",
-  "version": "0.18.2",
+  "version": "0.1.0",
   "description": "Cross-platform text messaging application",
   "type": "module",
   "scripts": {
